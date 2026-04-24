@@ -38,12 +38,6 @@
   </v-card>
 </template>
 
-<script setup lang="ts">
-import OledDisplay from './OledDisplay.vue';
-import { useStreamDeckStore } from '@/stores/streamdeck';
-
-const store = useStreamDeckStore();
-</script>
 
 <style scoped>
 .hardware-board {
@@ -117,3 +111,11 @@ const store = useStreamDeckStore();
 /* Hilfsklassen */
 .gap-8 { gap: 32px; }
 </style>
+
+
+<script setup lang="ts">
+import OledDisplay from './OledDisplay.vue';
+import { useStreamDeckStore } from '@/stores/streamdeck';
+
+const store = useStreamDeckStore();
+</script>
