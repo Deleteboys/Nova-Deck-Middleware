@@ -85,7 +85,7 @@ const store = useStreamDeckStore();
 const EFFECT_PARAMS: Record<string, string[]> = {
   Solid: ['color', 'brightness'],
   Blink: ['color', 'brightness', 'speed'],
-  Rainbow: ['brightness', 'speed', 'reverse'],
+  Rainbow: ['brightness', 'speed', 'saturation', 'reverse'],
   Breathing: ['color', 'brightness', 'speed'],
   Chase: ['color', 'brightness', 'speed', 'size', 'reverse'],
   Comet: ['color', 'brightness', 'speed', 'tail', 'reverse'],

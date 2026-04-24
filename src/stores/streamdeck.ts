@@ -1,13 +1,13 @@
-import { defineStore } from 'pinia'
-import { watch } from 'vue'
-import { setEffect, type LedEffectCommand } from '@/services/streamdeckCommands'
+import {defineStore} from 'pinia'
+import {watch} from 'vue'
+import {setEffect, type LedEffectCommand} from '@/services/streamdeckCommands'
 
 // Hilfsfunktion zur Konvertierung von Hex zu RGB
 const hexToRgb = (hex: string) => {
     const r = parseInt(hex.slice(1, 3), 16);
     const g = parseInt(hex.slice(3, 5), 16);
     const b = parseInt(hex.slice(5, 7), 16);
-    return { r, g, b };
+    return {r, g, b};
 };
 
 type ProfileKeyConfig = {
@@ -31,9 +31,9 @@ export const useStreamDeckStore = defineStore('streamdeck', {
         // Flag für ungespeicherte LED-Änderungen
         hasUnsavedLedChanges: false,
         profiles: [
-            { id: 0, name: 'Main (Desktop)', keys: {} },
-            { id: 1, name: 'Gaming', keys: {} },
-            { id: 2, name: 'Streaming', keys: {} }
+            {id: 0, name: 'Main (Desktop)', keys: {}},
+            {id: 1, name: 'Gaming', keys: {}},
+            {id: 2, name: 'Streaming', keys: {}}
         ] as Profile[],
         ledConfig: {
             effect: 'ColorOrbit',
@@ -83,7 +83,7 @@ export const useStreamDeckStore = defineStore('streamdeck', {
          */
         async saveLedSettings() {
             const conf = this.ledConfig;
-            const { r, g, b } = hexToRgb(conf.color);
+            const {r, g, b} = hexToRgb(conf.color);
 
             let command: LedEffectCommand;
 
@@ -91,47 +91,87 @@ export const useStreamDeckStore = defineStore('streamdeck', {
             // !!conf.reverse stellt sicher, dass es immer ein Boolean ist
             switch (conf.effect) {
                 case 'Solid':
-                    command = { Solid: { r, g, b, brightness: conf.brightness } };
+                    command = {Solid: {r, g, b, brightness: conf.brightness}};
                     break;
                 case 'Blink':
-                    command = { Blink: { r, g, b, brightness: conf.brightness, speed: conf.speed } };
+                    command = {Blink: {r, g, b, brightness: conf.brightness, speed: conf.speed}};
                     break;
                 case 'Rainbow':
-                    command = { Rainbow: { brightness: conf.brightness, speed: conf.speed, reverse: !!conf.reverse } };
+                    command = {
+                        Rainbow: {
+                            brightness: conf.brightness,
+                            speed: conf.speed,
+                            saturation: conf.saturation,
+                            reverse: !!conf.reverse
+                        }
+                    };
                     break;
                 case 'Breathing':
-                    command = { Breathing: { r, g, b, brightness: conf.brightness, speed: conf.speed } };
+                    command = {Breathing: {r, g, b, brightness: conf.brightness, speed: conf.speed}};
                     break;
                 case 'Chase':
-                    command = { Chase: { r, g, b, brightness: conf.brightness, speed: conf.speed, size: conf.size, reverse: !!conf.reverse } };
+                    command = {
+                        Chase: {
+                            r,
+                            g,
+                            b,
+                            brightness: conf.brightness,
+                            speed: conf.speed,
+                            size: conf.size,
+                            reverse: !!conf.reverse
+                        }
+                    };
                     break;
                 case 'Comet':
-                    command = { Comet: { r, g, b, brightness: conf.brightness, speed: conf.speed, tail: conf.tail, reverse: !!conf.reverse } };
+                    command = {
+                        Comet: {
+                            r,
+                            g,
+                            b,
+                            brightness: conf.brightness,
+                            speed: conf.speed,
+                            tail: conf.tail,
+                            reverse: !!conf.reverse
+                        }
+                    };
                     break;
                 case 'Sparkle':
-                    command = { Sparkle: { r, g, b, brightness: conf.brightness, speed: conf.speed, density: conf.density } };
+                    command = {
+                        Sparkle: {
+                            r,
+                            g,
+                            b,
+                            brightness: conf.brightness,
+                            speed: conf.speed,
+                            density: conf.density
+                        }
+                    };
                     break;
                 case 'Aurora':
-                    command = { Aurora: { brightness: conf.brightness, speed: conf.speed, reverse: !!conf.reverse } };
+                    command = {Aurora: {brightness: conf.brightness, speed: conf.speed, reverse: !!conf.reverse}};
                     break;
                 case 'ColorOrbit':
-                    command = { ColorOrbit: {
+                    command = {
+                        ColorOrbit: {
                             hue: conf.hue,
                             hue_shift: conf.hue_shift,
                             saturation: conf.saturation,
                             brightness: conf.brightness,
                             speed: conf.speed,
                             reverse: !!conf.reverse
-                        }};
+                        }
+                    };
                     break;
                 case 'Astolfo':
-                    command = { Astolfo: {
+                    command = {
+                        Astolfo: {
                             brightness: conf.brightness,
                             speed: conf.speed,
                             saturation: conf.saturation,
                             spread: conf.spread,
                             reverse: !!conf.reverse
-                        }};
+                        }
+                    };
                     break;
                 default:
                     console.error("Unbekannter Effekt:", conf.effect);
@@ -154,7 +194,7 @@ export const useStreamDeckStore = defineStore('streamdeck', {
                 () => {
                     this.hasUnsavedLedChanges = true;
                 },
-                { deep: true }
+                {deep: true}
             );
         }
     }

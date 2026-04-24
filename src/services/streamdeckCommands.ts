@@ -22,6 +22,7 @@ export type LedEffectCommand =
   Rainbow: {
     brightness: number;
     speed: number;
+    saturation: number;
     reverse: boolean;
   };
 }

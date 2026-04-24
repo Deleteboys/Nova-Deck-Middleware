@@ -75,9 +75,8 @@ export function useLedAnimation(getLedConfig: () => any) {
             case 'Rainbow':
                 let base_hue = (vFrame * speed_step(speed)) % 256;
                 for (let i = 0; i < NUM_LEDS; i++) {
-                    // Visualisierung invertiert für Synchronität mit Streamdeck
                     let virtual_idx = reverse ? NUM_LEDS - 1 - i : i;
-                    let col = hsv_to_rgb((base_hue + Math.floor((virtual_idx * 256) / NUM_LEDS)) % 256, 255, 255);
+                    let col = hsv_to_rgb((base_hue + Math.floor((virtual_idx * 256) / NUM_LEDS)) % 256, saturation, 255);
                     leds[i] = applyBrightness(col.r, col.g, col.b, brightness);
                 }
                 break;

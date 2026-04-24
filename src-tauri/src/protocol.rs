@@ -18,6 +18,7 @@ pub enum LedEffect {
     Rainbow {
         brightness: u8,
         speed: u8,
+        saturation: u8,
         #[serde(default)]
         reverse: bool, // Hinzugefügt
     },
