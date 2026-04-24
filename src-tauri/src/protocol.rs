@@ -18,6 +18,8 @@ pub enum LedEffect {
     Rainbow {
         brightness: u8,
         speed: u8,
+        #[serde(default)]
+        reverse: bool, // Hinzugefügt
     },
     Breathing {
         r: u8,
@@ -33,6 +35,8 @@ pub enum LedEffect {
         brightness: u8,
         speed: u8,
         size: u8,
+        #[serde(default)]
+        reverse: bool, // Hinzugefügt
     },
     Comet {
         r: u8,
@@ -41,6 +45,8 @@ pub enum LedEffect {
         brightness: u8,
         speed: u8,
         tail: u8,
+        #[serde(default)]
+        reverse: bool, // Hinzugefügt
     },
     Sparkle {
         r: u8,
@@ -53,6 +59,8 @@ pub enum LedEffect {
     Aurora {
         brightness: u8,
         speed: u8,
+        #[serde(default)]
+        reverse: bool, // Hinzugefügt
     },
     ColorOrbit {
         hue: u8,
@@ -60,12 +68,16 @@ pub enum LedEffect {
         saturation: u8,
         brightness: u8,
         speed: u8,
+        #[serde(default)]
+        reverse: bool, // Hinzugefügt
     },
     Astolfo {
         brightness: u8,
         speed: u8,
         saturation: u8,
         spread: u8,
+        #[serde(default)]
+        reverse: bool, // Hinzugefügt
     },
 }
 
@@ -95,6 +107,6 @@ pub enum HostToPico {
 pub enum PicoToHost {
     Hello,
     EncoderTurned { id: u8, delta: i8 },
-    ButtonPressed(u8),
+    ButtonChanged { id: u8, pressed: bool },
     Log(heapless::String<64>),
 }

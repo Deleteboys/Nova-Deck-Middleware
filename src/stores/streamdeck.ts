@@ -46,7 +46,8 @@ export const useStreamDeckStore = defineStore('streamdeck', {
             hue: 200,
             hue_shift: 50,
             saturation: 255,
-            spread: 120
+            spread: 120,
+            reverse: false // <- Hier als Default hinzugefügt
         } as any
     }),
 
@@ -87,6 +88,7 @@ export const useStreamDeckStore = defineStore('streamdeck', {
             let command: LedEffectCommand;
 
             // Mapping auf das Rust/Pico Format (LedEffectCommand)
+            // !!conf.reverse stellt sicher, dass es immer ein Boolean ist
             switch (conf.effect) {
                 case 'Solid':
                     command = { Solid: { r, g, b, brightness: conf.brightness } };
@@ -95,22 +97,22 @@ export const useStreamDeckStore = defineStore('streamdeck', {
                     command = { Blink: { r, g, b, brightness: conf.brightness, speed: conf.speed } };
                     break;
                 case 'Rainbow':
-                    command = { Rainbow: { brightness: conf.brightness, speed: conf.speed } };
+                    command = { Rainbow: { brightness: conf.brightness, speed: conf.speed, reverse: !!conf.reverse } };
                     break;
                 case 'Breathing':
                     command = { Breathing: { r, g, b, brightness: conf.brightness, speed: conf.speed } };
                     break;
                 case 'Chase':
-                    command = { Chase: { r, g, b, brightness: conf.brightness, speed: conf.speed, size: conf.size } };
+                    command = { Chase: { r, g, b, brightness: conf.brightness, speed: conf.speed, size: conf.size, reverse: !!conf.reverse } };
                     break;
                 case 'Comet':
-                    command = { Comet: { r, g, b, brightness: conf.brightness, speed: conf.speed, tail: conf.tail } };
+                    command = { Comet: { r, g, b, brightness: conf.brightness, speed: conf.speed, tail: conf.tail, reverse: !!conf.reverse } };
                     break;
                 case 'Sparkle':
                     command = { Sparkle: { r, g, b, brightness: conf.brightness, speed: conf.speed, density: conf.density } };
                     break;
                 case 'Aurora':
-                    command = { Aurora: { brightness: conf.brightness, speed: conf.speed } };
+                    command = { Aurora: { brightness: conf.brightness, speed: conf.speed, reverse: !!conf.reverse } };
                     break;
                 case 'ColorOrbit':
                     command = { ColorOrbit: {
@@ -118,7 +120,8 @@ export const useStreamDeckStore = defineStore('streamdeck', {
                             hue_shift: conf.hue_shift,
                             saturation: conf.saturation,
                             brightness: conf.brightness,
-                            speed: conf.speed
+                            speed: conf.speed,
+                            reverse: !!conf.reverse
                         }};
                     break;
                 case 'Astolfo':
@@ -126,7 +129,8 @@ export const useStreamDeckStore = defineStore('streamdeck', {
                             brightness: conf.brightness,
                             speed: conf.speed,
                             saturation: conf.saturation,
-                            spread: conf.spread
+                            spread: conf.spread,
+                            reverse: !!conf.reverse
                         }};
                     break;
                 default:

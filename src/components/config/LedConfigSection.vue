@@ -28,6 +28,19 @@
           ></v-color-picker>
         </template>
 
+        <template v-else-if="param === 'reverse'">
+          <div class="d-flex justify-space-between align-center mb-1">
+            <label class="text-caption text-grey text-uppercase">Richtung Umkehren</label>
+          </div>
+          <v-switch
+              v-model="store.ledConfig[param]"
+              color="primary"
+              hide-details
+              density="compact"
+              inset
+          ></v-switch>
+        </template>
+
         <template v-else>
           <div class="d-flex justify-space-between align-center mb-1">
             <label class="text-caption text-grey text-uppercase">{{ param.replace('_', ' ') }}</label>
@@ -72,13 +85,13 @@ const store = useStreamDeckStore();
 const EFFECT_PARAMS: Record<string, string[]> = {
   Solid: ['color', 'brightness'],
   Blink: ['color', 'brightness', 'speed'],
-  Rainbow: ['brightness', 'speed'],
+  Rainbow: ['brightness', 'speed', 'reverse'],
   Breathing: ['color', 'brightness', 'speed'],
-  Chase: ['color', 'brightness', 'speed', 'size'],
-  Comet: ['color', 'brightness', 'speed', 'tail'],
+  Chase: ['color', 'brightness', 'speed', 'size', 'reverse'],
+  Comet: ['color', 'brightness', 'speed', 'tail', 'reverse'],
   Sparkle: ['color', 'brightness', 'speed', 'density'],
-  ColorOrbit: ['hue', 'hue_shift', 'saturation', 'brightness', 'speed'],
-  Astolfo: ['brightness', 'speed', 'saturation', 'spread']
+  ColorOrbit: ['hue', 'hue_shift', 'saturation', 'brightness', 'speed', 'reverse'],
+  Astolfo: ['brightness', 'speed', 'saturation', 'spread', 'reverse']
 };
 
 const EFFECT_LIST = Object.keys(EFFECT_PARAMS);
