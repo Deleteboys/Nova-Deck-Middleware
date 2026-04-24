@@ -1,7 +1,23 @@
 import { defineStore } from 'pinia'
 
+type ProfileKeyConfig = {
+    value?: number;
+};
+
+type Profile = {
+    id: number;
+    name: string;
+    keys: Record<string, ProfileKeyConfig>;
+};
+
+type StreamdeckState = {
+    currentProfileId: number;
+    selectedElementId: string | null;
+    profiles: Profile[];
+};
+
 export const useStreamDeckStore = defineStore('streamdeck', {
-    state: () => ({
+    state: (): StreamdeckState => ({
         // Globaler State der gesamten App
         currentProfileId: 0,
         selectedElementId: null as string | null,
