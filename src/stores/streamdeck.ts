@@ -1,4 +1,14 @@
 import { defineStore } from 'pinia'
+import { watch } from 'vue'
+import { setEffect, type LedEffectCommand } from '@/services/streamdeckCommands'
+
+// Hilfsfunktion zur Konvertierung von Hex zu RGB
+const hexToRgb = (hex: string) => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return { r, g, b };
+};
 
 type ProfileKeyConfig = {
     value?: number;
@@ -18,6 +28,8 @@ export const useStreamDeckStore = defineStore('streamdeck', {
     state: () => ({
         currentProfileId: 0,
         selectedElementId: null as string | null,
+        // Flag für ungespeicherte LED-Änderungen
+        hasUnsavedLedChanges: false,
         profiles: [
             { id: 0, name: 'Main (Desktop)', keys: {} },
             { id: 1, name: 'Gaming', keys: {} },
@@ -35,7 +47,7 @@ export const useStreamDeckStore = defineStore('streamdeck', {
             hue_shift: 50,
             saturation: 255,
             spread: 120
-        }
+        } as any
     }),
 
     getters: {
@@ -52,22 +64,94 @@ export const useStreamDeckStore = defineStore('streamdeck', {
             this.selectedElementId = this.selectedElementId === id ? null : id;
         },
 
-        // Diese Action MUSS exakt so hier stehen
         updateElementConfig(id: string | null, updates: Partial<ProfileKeyConfig>) {
             if (!id || !this.activeProfile) return;
 
-            // Falls der Key noch nicht existiert, Objekt erstellen
             if (!this.activeProfile.keys[id]) {
                 this.activeProfile.keys[id] = {};
             }
 
-            // Bestehende Daten mit neuen Updates mergen
             this.activeProfile.keys[id] = {
                 ...this.activeProfile.keys[id],
                 ...updates
             };
+        },
 
-            console.log("Gespeichert:", id, this.activeProfile.keys[id]);
+        /**
+         * Sendet die aktuellen ledConfig-Daten an das physikalische Streamdeck
+         */
+        async saveLedSettings() {
+            const conf = this.ledConfig;
+            const { r, g, b } = hexToRgb(conf.color);
+
+            let command: LedEffectCommand;
+
+            // Mapping auf das Rust/Pico Format (LedEffectCommand)
+            switch (conf.effect) {
+                case 'Solid':
+                    command = { Solid: { r, g, b, brightness: conf.brightness } };
+                    break;
+                case 'Blink':
+                    command = { Blink: { r, g, b, brightness: conf.brightness, speed: conf.speed } };
+                    break;
+                case 'Rainbow':
+                    command = { Rainbow: { brightness: conf.brightness, speed: conf.speed } };
+                    break;
+                case 'Breathing':
+                    command = { Breathing: { r, g, b, brightness: conf.brightness, speed: conf.speed } };
+                    break;
+                case 'Chase':
+                    command = { Chase: { r, g, b, brightness: conf.brightness, speed: conf.speed, size: conf.size } };
+                    break;
+                case 'Comet':
+                    command = { Comet: { r, g, b, brightness: conf.brightness, speed: conf.speed, tail: conf.tail } };
+                    break;
+                case 'Sparkle':
+                    command = { Sparkle: { r, g, b, brightness: conf.brightness, speed: conf.speed, density: conf.density } };
+                    break;
+                case 'Aurora':
+                    command = { Aurora: { brightness: conf.brightness, speed: conf.speed } };
+                    break;
+                case 'ColorOrbit':
+                    command = { ColorOrbit: {
+                            hue: conf.hue,
+                            hue_shift: conf.hue_shift,
+                            saturation: conf.saturation,
+                            brightness: conf.brightness,
+                            speed: conf.speed
+                        }};
+                    break;
+                case 'Astolfo':
+                    command = { Astolfo: {
+                            brightness: conf.brightness,
+                            speed: conf.speed,
+                            saturation: conf.saturation,
+                            spread: conf.spread
+                        }};
+                    break;
+                default:
+                    console.error("Unbekannter Effekt:", conf.effect);
+                    return;
+            }
+
+            try {
+                await setEffect(command);
+                this.hasUnsavedLedChanges = false;
+                console.log("Hardware erfolgreich aktualisiert");
+            } catch (error) {
+                console.error("Fehler beim Senden an Pico:", error);
+            }
+        },
+
+        // Hilfsmethode um den Watcher zu initialisieren (wird in App.vue aufgerufen)
+        initHardwareWatcher() {
+            watch(
+                () => this.ledConfig,
+                () => {
+                    this.hasUnsavedLedChanges = true;
+                },
+                { deep: true }
+            );
         }
     }
 })
