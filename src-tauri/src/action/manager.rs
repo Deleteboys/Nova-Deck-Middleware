@@ -40,4 +40,7 @@ impl ActionManager {
             }
         }
     }
+    pub fn unregister(&mut self, trigger: &HardwareTrigger) {
+        self.mappings.remove(trigger);
+    }
 }

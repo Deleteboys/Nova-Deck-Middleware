@@ -1,5 +1,5 @@
 use std::io::{ErrorKind, Read, Write};
-use std::sync::mpsc;
+use std::sync::{mpsc, Arc, Mutex};
 use std::sync::mpsc::TryRecvError;
 use std::thread;
 use std::time::Duration;
@@ -12,23 +12,13 @@ use crate::action::manager::ActionManager;
 use crate::action::tracker::InputTracker;
 use crate::protocol::{HostToPico, PicoToHost};
 
-pub fn start_serial_thread(app: AppHandle, rx: mpsc::Receiver<HostToPico>) {
+pub fn start_serial_thread(app: AppHandle, rx: mpsc::Receiver<HostToPico>, action_manager: Arc<Mutex<ActionManager>>) {
     let mut current_port: Option<Box<dyn serialport::SerialPort>> = None;
     let mut current_port_name: Option<String> = None;
     let mut accumulator: Vec<u8> = Vec::new();
     let mut serial_buf = [0u8; 1024];
 
     let mut tracker = InputTracker::new();
-    let mut manager = ActionManager::new();
-
-    manager.register(
-        HardwareTrigger::Button { id: 4, event: ButtonEvent::ShortPress },
-        Box::new(PressKeyAction { key: enigo::Key::F14 })
-    );
-    manager.register(
-        HardwareTrigger::Button { id: 5, event: ButtonEvent::ShortPress },
-        Box::new(PressKeyAction { key: enigo::Key::F15 })
-    );
 
     loop {
         if current_port.is_none() {
@@ -94,7 +84,10 @@ pub fn start_serial_thread(app: AppHandle, rx: mpsc::Receiver<HostToPico>) {
                                 let _ = app.emit("pico-event", msg.clone());
 
                                 if let Some(logical_trigger) = tracker.process_event(msg) {
-                                    manager.handle_trigger(logical_trigger);
+                                    // Hier locken wir den Manager kurz, um die Aktion auszuführen
+                                    if let Ok(manager) = action_manager.lock() {
+                                        manager.handle_trigger(logical_trigger);
+                                    }
                                 }
 
                                 accumulator = rest.to_vec();

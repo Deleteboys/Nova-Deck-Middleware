@@ -16,6 +16,7 @@ type ProfileKeyConfig = {
     icon?: string;
     action?: string;
     actionValue?: string;
+    config?: any;
 };
 
 type Profile = {
@@ -185,6 +186,18 @@ export const useStreamDeckStore = defineStore('streamdeck', {
             } catch (error) {
                 console.error("Fehler beim Senden an Pico:", error);
             }
+
+        },
+
+        clearElementAction(id: string | null) {
+            if (!id || !this.activeProfile) return;
+
+            if (this.activeProfile.keys[id]) {
+                // Wir löschen nur die Aktions-Daten, das Label (Text) bleibt erhalten
+                this.activeProfile.keys[id].action = undefined;
+                this.activeProfile.keys[id].icon = undefined;
+                this.activeProfile.keys[id].config = undefined;
+            }
         },
 
         // Hilfsmethode um den Watcher zu initialisieren (wird in App.vue aufgerufen)
@@ -197,5 +210,6 @@ export const useStreamDeckStore = defineStore('streamdeck', {
                 {deep: true}
             );
         }
+
     }
 })

@@ -32,24 +32,24 @@
       <div class="button-grid">
         <v-card
             v-for="n in 8"
-            :key="`btn-${n-1}`"
-            :class="['stream-btn', { selected: store.selectedElementId === 'btn-' + (n-1) }]"
+            :key="`btn-${getHardwareIndex(n-1)}`"
+            :class="['stream-btn', { selected: store.selectedElementId === 'btn-' + getHardwareIndex(n-1) }]"
             color="#27272a"
             elevation="4"
             rounded="lg"
             v-ripple
-            @click="store.selectElement('btn-' + (n-1))"
+            @click="store.selectElement('btn-' + getHardwareIndex(n-1))"
         >
           <v-icon
               size="large"
-              :color="store.activeProfile?.keys['btn-' + (n-1)]?.icon ? 'primary' : 'grey-darken-1'"
+              :color="store.activeProfile?.keys['btn-' + getHardwareIndex(n-1)]?.icon ? 'primary' : 'grey-darken-1'"
               class="mb-1"
           >
-            {{ store.activeProfile?.keys['btn-' + (n - 1)]?.icon || 'mdi-plus' }}
+            {{ store.activeProfile?.keys['btn-' + getHardwareIndex(n - 1)]?.icon || 'mdi-plus' }}
           </v-icon>
 
           <span class="btn-label">
-            {{ store.activeProfile?.keys['btn-' + (n - 1)]?.label || '' }}
+            {{ store.activeProfile?.keys['btn-' + getHardwareIndex(n - 1)]?.label || '' }}
           </span>
         </v-card>
       </div>
@@ -64,6 +64,16 @@ import {useLedAnimation} from '@/composables/useLedAnimation';
 
 const store = useStreamDeckStore();
 const {leftGrad, bottomGrad, rightGrad} = useLedAnimation(() => store.ledConfig);
+
+// Diese Funktion rechnet den visuellen Index (0-7, von oben links)
+// in deinen physischen Hardware-Index um.
+const getHardwareIndex = (visualIndex: number): number => {
+  if (visualIndex >= 4) {
+    return visualIndex - 4; // Untere Reihe (4-7) wird zu (0-3) auf der Hardware
+  } else {
+    return visualIndex + 4; // Obere Reihe (0-3) wird zu (4-7) auf der Hardware
+  }
+};
 </script>
 
 <style scoped>

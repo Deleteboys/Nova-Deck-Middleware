@@ -1,21 +1,24 @@
 // Modul-Deklarationen einbinden
+pub mod action;
+mod modules;
 mod protocol;
 mod serial;
-pub mod action; // Das bindet den Ordner "action" über die mod.rs ein
+// Das bindet den Ordner "action" über die mod.rs ein
 
+use crate::action::actions::{ButtonEvent, EncoderEvent, HardwareTrigger};
+use crate::action::manager::ActionManager;
+use crate::protocol::HostToPico;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use std::sync::mpsc;
 use std::sync::Mutex;
+use std::sync::{mpsc, Arc};
 use std::thread;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{TrayIconBuilder, TrayIconEvent},
     AppHandle, Manager, RunEvent, State, WindowEvent,
 };
-
-use crate::protocol::HostToPico;
 
 const WINDOW_STATE_FILE: &str = "window-state.json";
 
@@ -32,6 +35,7 @@ struct PersistedWindowState {
 struct AppState {
     serial_tx: Mutex<Option<mpsc::Sender<HostToPico>>>,
     is_quitting: Mutex<bool>,
+    action_manager: Arc<Mutex<ActionManager>>,
 }
 
 // Der Command, den dein JavaScript aufruft
@@ -163,15 +167,19 @@ pub fn run() {
     // Channel fur den seriellen Thread erstellen
     let (tx, rx) = mpsc::channel::<HostToPico>();
 
+    let action_manager = Arc::new(Mutex::new(ActionManager::new()));
+    let manager_for_thread = Arc::clone(&action_manager);
+
     let app = tauri::Builder::default()
         // 1. AppState registrieren, damit `send_to_pico` darauf zugreifen kann
         .manage(AppState {
             serial_tx: Mutex::new(Some(tx)),
             is_quitting: Mutex::new(false),
+            action_manager,
         })
         // 2. Den Command fur das Frontend registrieren
-        .invoke_handler(tauri::generate_handler![send_to_pico])
-        .setup(|app| {
+        .invoke_handler(tauri::generate_handler![send_to_pico, update_mapping, remove_mapping])
+        .setup(move |app| {
             // --- TRAY MENU SETUP ---
             let quit_i = MenuItem::with_id(app, "quit", "Beenden", true, None::<&str>)?;
             let show_i = MenuItem::with_id(app, "show", "Einstellungen", true, None::<&str>)?;
@@ -204,7 +212,7 @@ pub fn run() {
             // --- SERIELLER THREAD SETUP ---
             let app_handle = app.handle().clone();
             thread::spawn(move || {
-                serial::start_serial_thread(app_handle, rx);
+                serial::start_serial_thread(app_handle, rx, manager_for_thread);
             });
 
             // --- FENSTER LOGIK ---
@@ -225,7 +233,8 @@ pub fn run() {
         })
         .on_window_event(|window, event| match event {
             WindowEvent::CloseRequested { api, .. } => {
-                if let Some(webview_window) = window.app_handle().get_webview_window(window.label()) {
+                if let Some(webview_window) = window.app_handle().get_webview_window(window.label())
+                {
                     persist_window_state(&webview_window);
                 }
 
@@ -237,12 +246,14 @@ pub fn run() {
                 let _ = window.hide();
             }
             WindowEvent::Moved(_) | WindowEvent::Resized(_) => {
-                if let Some(webview_window) = window.app_handle().get_webview_window(window.label()) {
+                if let Some(webview_window) = window.app_handle().get_webview_window(window.label())
+                {
                     persist_window_state(&webview_window);
                 }
             }
             WindowEvent::Focused(false) => {
-                if let Some(webview_window) = window.app_handle().get_webview_window(window.label()) {
+                if let Some(webview_window) = window.app_handle().get_webview_window(window.label())
+                {
                     persist_window_state(&webview_window);
                 }
             }
@@ -264,4 +275,129 @@ pub fn run() {
             }
         }
     });
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(tag = "type")] // <-- Das ist die Magie!
+pub enum ActionConfig {
+    PressKey { key: String },
+    SpotifyVolume { volume: u8 },
+    ToggleAudio { device1: String, device2: String },
+    // ... hier kommen alle deine zukünftigen Module rein
+}
+
+// Deine Payload ändert sich: Wir erwarten jetzt das ActionConfig Enum
+#[derive(Deserialize)]
+pub struct MappingPayload {
+    pub element_id: String,
+    pub trigger_type: String,
+    pub action_config: ActionConfig, // <-- Statt action_id als String
+}
+
+#[derive(serde::Deserialize)]
+pub struct UnmapPayload {
+    pub element_id: String,
+    pub trigger_type: String,
+}
+
+// Hilfsfunktion: Wandelt String in Enigo-Key um
+fn parse_key(key_str: &str) -> enigo::Key {
+    match key_str.to_uppercase().as_str() {
+        "F14" => enigo::Key::F14,
+        "F15" => enigo::Key::F15,
+        "A" => enigo::Key::Unicode('a'),
+        // ...
+        _ => enigo::Key::Return,
+    }
+}
+
+// Factory, die das Config-Enum in ausführbaren Code (Action Trait) verwandelt
+fn create_action(config: ActionConfig) -> Box<dyn crate::action::actions::Action> {
+    match config {
+        ActionConfig::PressKey { key } => {
+            Box::new(crate::modules::press_key_action::PressKeyAction {
+                key: parse_key(&key),
+            })
+        }
+        // ActionConfig::SpotifyVolume { volume } => {
+        //     Box::new(crate::modules::spotify_action::SetSpotifyVolumeAction {
+        //         volume
+        //     })
+        // }
+        // ActionConfig::ToggleAudio { device1, device2 } => {
+        //     Box::new(crate::modules::audio_action::ToggleAudioAction {
+        //         device1, device2
+        //     })
+        // }
+        _ => {
+            println!("WARNUNG: Aktion noch nicht implementiert!");
+            Box::new(crate::modules::press_key_action::PressKeyAction {
+                key: enigo::Key::F14,
+            })
+        }
+    }
+}
+
+#[tauri::command]
+fn update_mapping(state: State<AppState>, payload: MappingPayload) -> Result<(), String> {
+    // 1. String-ID (z.B. "btn-0") in eine Zahl (0) umwandeln
+    let is_button = payload.element_id.starts_with("btn-");
+    let id_str = payload.element_id.replace("btn-", "").replace("enc-", "");
+    let id: u8 = id_str.parse().unwrap_or(0);
+
+    // 2. Den logischen Trigger bauen
+    let trigger = if is_button {
+        let event = match payload.trigger_type.as_str() {
+            "LongPress" => ButtonEvent::LongPress,
+            "DoublePress" => ButtonEvent::DoublePress,
+            _ => ButtonEvent::ShortPress, // Fallback
+        };
+        HardwareTrigger::Button { id, event }
+    } else {
+        let event = match payload.trigger_type.as_str() {
+            "TurnLeft" => EncoderEvent::TurnLeft,
+            "TurnRight" => EncoderEvent::TurnRight,
+            // ... weitere Encoder events
+            _ => EncoderEvent::PushPress,
+        };
+        HardwareTrigger::Encoder { id, event }
+    };
+
+    let action = create_action(payload.action_config);
+
+    if let Ok(mut manager) = state.action_manager.lock() {
+        manager.register(trigger, action);
+    }
+    Ok(())
+}
+#[tauri::command]
+fn remove_mapping(state: State<AppState>, payload: UnmapPayload) -> Result<(), String> {
+    let is_button = payload.element_id.starts_with("btn-");
+    let id_str = payload.element_id.replace("btn-", "").replace("enc-", "");
+    let id: u8 = id_str.parse().unwrap_or(0);
+
+    // Den Trigger genau wie beim Speichern zusammenbauen
+    let trigger = if is_button {
+        let event = match payload.trigger_type.as_str() {
+            "LongPress" => ButtonEvent::LongPress,
+            "DoublePress" => ButtonEvent::DoublePress,
+            _ => ButtonEvent::ShortPress,
+        };
+        HardwareTrigger::Button { id, event }
+    } else {
+        let event = match payload.trigger_type.as_str() {
+            "TurnLeft" => EncoderEvent::TurnLeft,
+            "TurnRight" => EncoderEvent::TurnRight,
+            _ => EncoderEvent::PushPress,
+        };
+        HardwareTrigger::Encoder { id, event }
+    };
+
+    // Mapping aus dem Manager löschen
+    if let Ok(mut manager) = state.action_manager.lock() {
+        manager.unregister(&trigger);
+        println!("Aktion entfernt von: {} ({})", payload.element_id, payload.trigger_type);
+    }
+
+    Ok(())
 }

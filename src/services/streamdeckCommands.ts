@@ -163,3 +163,43 @@ export async function setEffect(effect: LedEffectCommand): Promise<void> {
 export async function startBootloader(): Promise<void> {
   await sendToPico("StartBootloader");
 }
+
+export type ActionConfig =
+    | { type: 'PressKey'; key: string }
+    | { type: 'SpotifyVolume'; volume: number }
+    | { type: 'ToggleAudio'; device1: string; device2: string };
+
+export async function updateActionMapping(
+    elementId: string,
+    triggerType: string,
+    actionConfig: ActionConfig
+): Promise<void> {
+  try {
+    await invoke("update_mapping", {
+      payload: {
+        element_id: elementId,
+        trigger_type: triggerType,
+        action_config: actionConfig
+      }
+    });
+  } catch (error) {
+    console.error("Fehler beim Senden des Mappings an Rust:", error);
+    throw error;
+  }
+}
+export async function removeActionMapping(
+    elementId: string,
+    triggerType: string
+): Promise<void> {
+  try {
+    await invoke("remove_mapping", {
+      payload: {
+        element_id: elementId,
+        trigger_type: triggerType
+      }
+    });
+  } catch (error) {
+    console.error("Fehler beim Löschen des Mappings in Rust:", error);
+    throw error;
+  }
+}
