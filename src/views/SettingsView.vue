@@ -1,98 +1,134 @@
 <template>
-  <v-container class="py-10">
-    <v-card max-width="500" class="mx-auto pa-6" border variant="flat" color="#1a1a1c">
+  <div class="pa-4 d-flex flex-column fill-height overflow-y-auto custom-scrollbar">
 
-      <h2 class="text-subtitle-1 text-medium-emphasis text-uppercase font-weight-bold letter-spacing-1 border-b pb-3 mb-6">
-        Firmware
-      </h2>
+    <div class="mx-auto w-100" style="max-width: 600px; margin-top: 20px;">
 
-      <v-window v-model="updatePhase" :touch="false">
+      <div class="mb-4">
+        <div class="d-flex align-center text-caption text-primary uppercase tracking-widest font-weight-bold mb-1">
+          <v-icon size="small" class="mr-2">mdi-microchip</v-icon>
+          Firmware
+        </div>
+      </div>
 
-        <v-window-item :value="1">
-          <div class="text-center mb-6">
-            <v-icon size="48" color="primary" class="mb-3">mdi-tray-arrow-down</v-icon>
-            <h3 class="text-h5 font-weight-bold mb-1">Update verfügbar</h3>
-            <p class="text-body-2 text-medium-emphasis">Eine neue Firmware-Version steht bereit.</p>
-          </div>
+      <v-divider class="mb-6 border-opacity-25" color="white"></v-divider>
 
-          <v-card variant="outlined" class="d-flex align-center justify-center pa-5 mb-8 border-dashed bg-transparent">
-            <div class="text-center flex-1-1-0">
-              <div class="text-caption text-uppercase text-medium-emphasis mb-1">Aktuell</div>
-              <div class="text-h5 font-weight-bold font-monospace">{{ currentVersion }}</div>
+      <v-card color="#18181b" variant="flat" class="border border-zinc-800 rounded-lg pa-6 mb-10">
+        <v-window v-model="updatePhase" :touch="false">
+
+          <v-window-item :value="1">
+            <div class="text-center mb-6">
+              <v-icon size="40" color="primary" class="mb-3">mdi-tray-arrow-down</v-icon>
+              <h3 class="text-h6 font-weight-bold text-white mb-1">Update verfügbar</h3>
+              <p class="text-body-2 text-grey">Eine neue Firmware-Version steht bereit.</p>
             </div>
 
-            <v-icon color="grey-darken-1" size="x-large" class="mx-2 opacity-50">mdi-arrow-right</v-icon>
+            <div class="d-flex align-center justify-center pa-5 mb-6 border-dashed rounded-lg border-zinc-700 bg-zinc-800 bg-opacity-30">
+              <div class="text-center flex-1-1-0">
+                <div class="text-caption text-uppercase text-grey mb-1">Aktuell</div>
+                <div class="text-subtitle-1 font-weight-bold font-monospace text-white">{{ currentVersion }}</div>
+              </div>
 
-            <div class="text-center flex-1-1-0">
-              <div class="text-caption text-uppercase text-medium-emphasis mb-1">Neu</div>
-              <div class="text-h5 font-weight-bold text-primary font-monospace">{{ newVersion }}</div>
+              <v-icon color="grey-darken-1" size="large" class="mx-2 opacity-50">mdi-arrow-right</v-icon>
+
+              <div class="text-center flex-1-1-0">
+                <div class="text-caption text-uppercase text-grey mb-1">Neu</div>
+                <div class="text-subtitle-1 font-weight-bold text-primary font-monospace">{{ newVersion }}</div>
+              </div>
             </div>
-          </v-card>
 
-          <v-btn
-              color="primary"
-              block
-              size="x-large"
-              class="font-weight-bold text-none"
-              elevation="4"
-              @click="startUpdate"
-          >
-            Jetzt aktualisieren
-          </v-btn>
-        </v-window-item>
-
-        <v-window-item :value="2">
-          <div class="text-center py-4">
-            <v-progress-circular
-                indeterminate
+            <v-btn
                 color="primary"
-                size="56"
-                width="4"
-                class="mb-6"
-            ></v-progress-circular>
-
-            <h3 class="text-h6 font-weight-medium mb-6">{{ statusMessage }}</h3>
-
-            <v-progress-linear
-                v-model="updateProgress"
-                color="primary"
-                height="8"
-                rounded
-                class="mb-8"
-            ></v-progress-linear>
-
-            <v-alert
-                type="error"
-                variant="tonal"
-                class="text-left text-body-2 font-weight-medium"
-                icon="mdi-power-plug-off"
+                block
+                size="large"
+                rounded="lg"
+                class="font-weight-medium text-none"
+                elevation="4"
+                @click="startUpdate"
             >
-              Bitte trenne das DIY Deck nicht vom Strom oder PC!
-            </v-alert>
-          </div>
-        </v-window-item>
+              Jetzt aktualisieren
+            </v-btn>
+          </v-window-item>
 
-        <v-window-item :value="3">
-          <div class="text-center py-6">
-            <v-icon color="success" size="72" class="mb-4">mdi-check-circle</v-icon>
-            <h3 class="text-h5 font-weight-bold text-success mb-2">Update erfolgreich!</h3>
-            <p class="text-body-2 text-medium-emphasis mb-8">Dein Gerät wurde aktualisiert und startet neu.</p>
-            <v-btn variant="tonal" block size="large" @click="resetUpdate">Zurück zu den Einstellungen</v-btn>
-          </div>
-        </v-window-item>
+          <v-window-item :value="2">
+            <div class="text-center py-4">
+              <v-progress-circular
+                  indeterminate
+                  color="primary"
+                  size="48"
+                  width="4"
+                  class="mb-6"
+              ></v-progress-circular>
 
-      </v-window>
+              <h3 class="text-subtitle-1 font-weight-medium text-white mb-6">{{ statusMessage }}</h3>
 
-      <v-divider class="my-8 opacity-20"></v-divider>
+              <v-progress-linear
+                  v-model="updateProgress"
+                  color="primary"
+                  height="6"
+                  rounded
+                  bg-color="zinc-800"
+                  class="mb-8"
+              ></v-progress-linear>
 
-      <h2 class="text-subtitle-1 text-medium-emphasis text-uppercase font-weight-bold letter-spacing-1 border-b pb-3 mb-6">
-        System-Einstellungen
-      </h2>
-      <v-switch label="Auto-Start mit Windows" color="primary" hide-details inset></v-switch>
-      <v-switch label="Vibration standardmäßig an" color="primary" hide-details inset></v-switch>
+              <v-alert
+                  type="error"
+                  variant="tonal"
+                  class="text-left text-body-2 font-weight-medium rounded-lg"
+                  icon="mdi-power-plug-off"
+              >
+                Bitte trenne das Deck nicht vom Strom oder PC!
+              </v-alert>
+            </div>
+          </v-window-item>
 
-    </v-card>
-  </v-container>
+          <v-window-item :value="3">
+            <div class="text-center py-6">
+              <v-icon color="success" size="64" class="mb-4">mdi-check-circle-outline</v-icon>
+              <h3 class="text-h6 font-weight-bold text-success mb-2">Update erfolgreich!</h3>
+              <p class="text-body-2 text-grey mb-8">Dein Gerät wurde aktualisiert und startet neu.</p>
+
+              <v-btn
+                  variant="tonal"
+                  color="primary"
+                  block
+                  size="large"
+                  rounded="lg"
+                  class="text-none"
+                  @click="resetUpdate"
+              >
+                Zurück
+              </v-btn>
+            </div>
+          </v-window-item>
+
+        </v-window>
+      </v-card>
+
+      <div class="mb-4">
+        <div class="d-flex align-center text-caption text-primary uppercase tracking-widest font-weight-bold mb-1">
+          <v-icon size="small" class="mr-2">mdi-cog-outline</v-icon>
+          System Einstellungen
+        </div>
+      </div>
+
+      <v-divider class="mb-6 border-opacity-25" color="white"></v-divider>
+
+      <v-card color="#18181b" variant="flat" class="border border-zinc-800 rounded-lg overflow-hidden mb-8">
+
+        <div class="d-flex justify-space-between align-center px-4 py-3 border-b border-zinc-700">
+          <div class="text-body-2 text-grey">Auto-Start mit Windows</div>
+          <v-switch color="primary" hide-details density="compact" inset style="flex: 0 0 auto;"></v-switch>
+        </div>
+
+        <div class="d-flex justify-space-between align-center px-4 py-3">
+          <div class="text-body-2 text-grey">Vibration standardmäßig an</div>
+          <v-switch color="primary" hide-details density="compact" inset style="flex: 0 0 auto;"></v-switch>
+        </div>
+
+      </v-card>
+
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -155,15 +191,25 @@ const resetUpdate = () => {
 </script>
 
 <style scoped>
-/* Hilfsklassen für sauberes Typography- & Border-Styling */
-.letter-spacing-1 {
-  letter-spacing: 1px;
+/* Typography & Helpers */
+.uppercase {
+  text-transform: uppercase;
+}
+.tracking-widest {
+  letter-spacing: 0.1em !important;
 }
 
 .font-monospace {
   font-family: 'Courier New', Courier, monospace;
 }
 
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+
+/* Borders & Colors */
 .border-b {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
@@ -174,12 +220,20 @@ const resetUpdate = () => {
   border-color: rgba(255, 255, 255, 0.15) !important;
 }
 
-.opacity-50 {
-  opacity: 0.5;
+.bg-zinc-800 {
+  background-color: #27272a !important;
 }
 
-.opacity-20 {
-  opacity: 0.2;
+.border-zinc-700 {
+  border-color: #3f3f46 !important;
+}
+
+.border-zinc-800 {
+  border-color: #27272a !important;
+}
+
+.opacity-50 {
+  opacity: 0.5;
 }
 
 /* Verhindert, dass das V-Window seine Höhe wild animiert */

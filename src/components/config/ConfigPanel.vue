@@ -250,11 +250,11 @@ const assignAction = async (action: any) => {
   if (!store.selectedElementId) return;
 
   const usedTriggers = Object.keys(store.activeProfile?.keys[store.selectedElementId]?.actions || {});
-  let targetTrigger: TriggerType = triggerOptions.value[0].value;
+  let targetTrigger: TriggerType = triggerOptions.value[0].value as TriggerType;
 
   for (const opt of triggerOptions.value) {
     if (!usedTriggers.includes(opt.value)) {
-      targetTrigger = opt.value;
+      targetTrigger = opt.value as TriggerType;
       break;
     }
   }

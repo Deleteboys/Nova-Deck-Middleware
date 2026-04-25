@@ -43,4 +43,8 @@ impl ActionManager {
     pub fn unregister(&mut self, trigger: &HardwareTrigger) {
         self.mappings.remove(trigger);
     }
+
+    pub fn clear(&mut self) {
+        self.mappings.clear();
+    }
 }

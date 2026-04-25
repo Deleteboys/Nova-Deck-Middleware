@@ -234,3 +234,18 @@ export async function removeActionMapping(
     throw error;
   }
 }
+
+type MappingPayload = {
+  element_id: string;
+  trigger_type: TriggerType;
+  action_config: ActionConfig;
+};
+
+export async function syncActionMappings(mappings: MappingPayload[]): Promise<void> {
+  try {
+    await invoke("sync_mappings", { mappings });
+  } catch (error) {
+    console.error("Fehler beim Synchronisieren der Mappings in Rust:", error);
+    throw error;
+  }
+}

@@ -13,7 +13,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue';
+import { onMounted, onUnmounted, watch } from 'vue';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { useStreamDeckStore } from '@/stores/streamdeck';
 import {
@@ -46,8 +46,11 @@ const extractConfig = (payload: unknown): DeviceConfig | null => {
 };
 
 onMounted(() => {
-  // Startet das Tracking von LED-Änderungen im Hintergrund
   store.initHardwareWatcher();
+
+  store.syncActiveProfileMappingsToBackend().catch((error) => {
+    console.warn('Persisted mappings could not be synced:', error);
+  });
 
   listen<boolean>('pico-connection', async (event) => {
     store.setDeviceConnected(event.payload);
@@ -81,6 +84,15 @@ onMounted(() => {
   console.log("Hardware-Synchronisation aktiv.");
 });
 
+watch(
+  () => store.currentProfileId,
+  () => {
+    store.syncActiveProfileMappingsToBackend().catch((error) => {
+      console.warn('Profile mappings could not be synced:', error);
+    });
+  }
+);
+
 onUnmounted(() => {
   for (const unlisten of unlistenCallbacks) {
     unlisten();
@@ -92,7 +104,7 @@ onUnmounted(() => {
 /* Verhindert den globalen Scrollbalken komplett (Bulletproof) */
 html { overflow-y: hidden !important; }
 
-/* Globale Scrollbar-Verschönerung */
+/* Globale Scrollbar-Verschonerung */
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { background: #111113; }
 ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 10px; }

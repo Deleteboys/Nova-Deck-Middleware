@@ -192,7 +192,8 @@ pub fn run() {
             send_to_pico,
             get_connection_status,
             update_mapping,
-            remove_mapping
+            remove_mapping,
+            sync_mappings
         ])
         .setup(move |app| {
             // --- TRAY MENU SETUP ---
@@ -297,7 +298,7 @@ pub fn run() {
     });
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(tag = "type")] // <-- Das ist die Magie!
 pub enum ActionConfig {
     PressKey { key: String },
@@ -308,7 +309,7 @@ pub enum ActionConfig {
 }
 
 // Deine Payload ändert sich: Wir erwarten jetzt das ActionConfig Enum
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct MappingPayload {
     pub element_id: String,
     pub trigger_type: String,
@@ -447,4 +448,61 @@ fn remove_mapping(state: State<AppState>, payload: UnmapPayload) -> Result<(), S
     }
 
     Ok(())
+}
+
+#[tauri::command]
+fn sync_mappings(state: State<AppState>, mappings: Vec<MappingPayload>) -> Result<(), String> {
+    if let Ok(mut manager) = state.action_manager.lock() {
+        manager.clear();
+
+        for payload in mappings {
+            let trigger = trigger_from_payload(&payload.element_id, &payload.trigger_type)?;
+            let action = create_action(payload.action_config);
+            manager.register(trigger, action);
+        }
+    }
+
+    Ok(())
+}
+
+fn parse_element_id(element_id: &str) -> Result<(bool, u8), String> {
+    let is_button = element_id.starts_with("btn-");
+    let is_encoder = element_id.starts_with("enc-");
+
+    if !is_button && !is_encoder {
+        return Err(format!("Unknown element_id: {element_id}"));
+    }
+
+    let id_str = element_id.replace("btn-", "").replace("enc-", "");
+    let id = id_str
+        .parse::<u8>()
+        .map_err(|_| format!("Invalid element_id: {element_id}"))?;
+
+    Ok((is_button, id))
+}
+
+fn trigger_from_payload(element_id: &str, trigger_type: &str) -> Result<HardwareTrigger, String> {
+    let (is_button, id) = parse_element_id(element_id)?;
+
+    if is_button {
+        let event = match trigger_type {
+            "ShortPress" => ButtonEvent::ShortPress,
+            "LongPress" => ButtonEvent::LongPress,
+            "DoublePress" => ButtonEvent::DoublePress,
+            _ => return Err(format!("Unknown button trigger: {trigger_type}")),
+        };
+
+        return Ok(HardwareTrigger::Button { id, event });
+    }
+
+    let event = match trigger_type {
+        "TurnLeft" => EncoderEvent::TurnLeft,
+        "TurnRight" => EncoderEvent::TurnRight,
+        "PushTurnLeft" => EncoderEvent::PushTurnLeft,
+        "PushTurnRight" => EncoderEvent::PushTurnRight,
+        "PushPress" => EncoderEvent::PushPress,
+        _ => return Err(format!("Unknown encoder trigger: {trigger_type}")),
+    };
+
+    Ok(HardwareTrigger::Encoder { id, event })
 }
