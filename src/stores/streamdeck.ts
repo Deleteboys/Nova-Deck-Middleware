@@ -41,6 +41,7 @@ export const useStreamDeckStore = defineStore('streamdeck', {
         selectedElementId: null as string | null,
         // Flag für ungespeicherte LED-Änderungen
         hasUnsavedLedChanges: false,
+        suppressLedDirtyTracking: false,
         profiles: [
             {id: 0, name: 'Main (Desktop)', keys: {}},
             {id: 1, name: 'Gaming', keys: {}},
@@ -121,6 +122,8 @@ export const useStreamDeckStore = defineStore('streamdeck', {
                 return;
             }
 
+            this.suppressLedDirtyTracking = true;
+
             const payload = effectConfig as Record<string, number | boolean>;
 
             const nextConfig: Record<string, unknown> = {
@@ -146,6 +149,9 @@ export const useStreamDeckStore = defineStore('streamdeck', {
 
             this.ledConfig = nextConfig;
             this.hasUnsavedLedChanges = false;
+            Promise.resolve().then(() => {
+                this.suppressLedDirtyTracking = false;
+            });
         },
 
         /**
@@ -262,6 +268,9 @@ export const useStreamDeckStore = defineStore('streamdeck', {
             watch(
                 () => this.ledConfig,
                 () => {
+                    if (this.suppressLedDirtyTracking) {
+                        return;
+                    }
                     this.hasUnsavedLedChanges = true;
                 },
                 {deep: true}
