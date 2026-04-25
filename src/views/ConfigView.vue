@@ -45,7 +45,7 @@ import ConfigPanel from '@/components/config/ConfigPanel.vue'
 }
 
 .right-panel {
-  width: 15%;
+  width: 20%;
   min-width: 320px;
   flex-shrink: 0;
 }

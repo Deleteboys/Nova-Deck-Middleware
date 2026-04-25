@@ -47,9 +47,9 @@
 
             <span
                 v-if="editingParam !== param"
-                class="text-caption font-weight-bold text-primary edit-trigger"
-                title="Doppelklick zur direkten Eingabe"
-                @dblclick="startEditing(param)"
+                class="text-caption font-weight-bold text-white edit-trigger"
+                title="Klicken zur direkten Eingabe"
+                @click="startEditing(param)"
             >
               {{ Math.round(store.ledConfig[param]) }}
             </span>
@@ -78,6 +78,7 @@
               step="1"
               hide-details
               color="primary"
+              track-color="zinc-700"
               density="compact"
           ></v-slider>
         </template>
@@ -162,30 +163,36 @@ const EFFECT_LIST = Object.keys(EFFECT_PARAMS);
   margin-top: 20px;
 }
 
-/* --- Styles für das Inline-Editing --- */
+/* --- Styles für das Inline-Editing (angepasst an Actions) --- */
 .edit-trigger {
   cursor: pointer;
-  padding: 0 4px;
+  padding: 2px 6px;
   border-radius: 4px;
-  transition: background-color 0.2s;
+  background: rgba(255, 255, 255, 0.03);
+  transition: all 0.2s;
 }
 
 .edit-trigger:hover {
-  background: rgba(99, 102, 241, 0.1);
+  background: rgba(255, 255, 255, 0.1);
+  color: #6366f1 !important;
 }
 
 .inline-input-wrapper {
-  width: 60px;
-  margin-top: -8px;
+  width: 55px;
+  margin-top: -6px;
+}
+
+.inline-input-wrapper :deep(input) {
+  text-align: right;
+  font-size: 0.875rem !important;
+  font-weight: bold;
+  color: white !important;
+  padding-bottom: 2px !important;
 }
 
 .inline-input-wrapper :deep(input[type="number"]::-webkit-outer-spin-button),
 .inline-input-wrapper :deep(input[type="number"]::-webkit-inner-spin-button) {
   -webkit-appearance: none;
   margin: 0;
-}
-.inline-input-wrapper :deep(input[type="number"]) {
-  -moz-appearance: textfield;
-  text-align: right;
 }
 </style>
