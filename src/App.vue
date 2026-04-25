@@ -1,8 +1,8 @@
 <template>
-  <v-app theme="dark">
+  <v-app theme="dark" class="h-screen overflow-hidden">
     <TopBar />
 
-    <v-main>
+    <v-main class="d-flex flex-column h-100">
       <router-view v-slot="{ Component }">
         <v-fade-transition mode="out-in">
           <component :is="Component" />
@@ -89,7 +89,10 @@ onUnmounted(() => {
 </script>
 
 <style>
-/* Globale Scrollbar-Verschönerung passend zum Board-Design */
+/* Verhindert den globalen Scrollbalken komplett (Bulletproof) */
+html { overflow-y: hidden !important; }
+
+/* Globale Scrollbar-Verschönerung */
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { background: #111113; }
 ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 10px; }

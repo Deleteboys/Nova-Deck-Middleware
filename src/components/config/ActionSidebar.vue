@@ -1,5 +1,5 @@
 <template>
-  <div class="pa-4 fill-height bg-zinc-900">
+  <div class="pa-4 bg-zinc-900">
     <LedConfigSection />
   </div>
 </template>
