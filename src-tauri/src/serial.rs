@@ -34,6 +34,13 @@ pub fn start_serial_thread(app: AppHandle, rx: mpsc::Receiver<HostToPico>, actio
                         println!("Serial service connected on {}", port_name);
                         let _ = app.emit("pico-connection", true);
 
+                        let mut buf = [0u8; 64];
+                        if let Ok(slice) = postcard::to_slice(&HostToPico::GetConfig, &mut buf) {
+                            if let Err(e) = port.write_all(slice).and_then(|_| port.flush()) {
+                                println!("Initial config request failed: {}", e);
+                            }
+                        }
+
                         current_port = Some(port);
                         current_port_name = Some(port_name);
                         accumulator.clear();

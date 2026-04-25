@@ -112,9 +112,14 @@ export type LedEffectCommand =
   };
 };
 
+export type DeviceConfig = {
+  led_effect: LedEffectCommand;
+};
+
 type HostToPicoCommand =
     | "Ping"
     | "StartBootloader"
+    | "GetConfig"
     | {
   FillAll: {
     r: number;
@@ -182,6 +187,10 @@ export async function setEffect(effect: LedEffectCommand): Promise<void> {
 
 export async function startBootloader(): Promise<void> {
   await sendToPico("StartBootloader");
+}
+
+export async function requestDeviceConfig(): Promise<void> {
+  await sendToPico("GetConfig");
 }
 
 // --- ACTION UND MAPPING API ---

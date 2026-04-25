@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { watch } from 'vue'
 import { setEffect, type LedEffectCommand, type TriggerType } from '@/services/streamdeckCommands'
+import type { DeviceConfig } from '@/services/streamdeckCommands'
 
 // Hilfsfunktion zur Konvertierung von Hex zu RGB
 const hexToRgb = (hex: string) => {
@@ -9,6 +10,11 @@ const hexToRgb = (hex: string) => {
     const b = parseInt(hex.slice(5, 7), 16);
     return {r, g, b};
 };
+
+const rgbToHex = (r: number, g: number, b: number) =>
+    `#${[r, g, b]
+        .map((channel) => Math.max(0, Math.min(255, channel)).toString(16).padStart(2, '0'))
+        .join('')}`;
 
 // --- NEUE STRUKTUR FÜR MEHRFACH-BELEGUNGEN ---
 export type ActionSetup = {
@@ -106,6 +112,41 @@ export const useStreamDeckStore = defineStore('streamdeck', {
 
 
         // --- LED FUNKTIONEN ---
+
+        applyDeviceConfig(config: DeviceConfig) {
+            const ledEffect = config.led_effect;
+            const [effectName, effectConfig] = Object.entries(ledEffect)[0] ?? [];
+
+            if (!effectName || !effectConfig || typeof effectConfig !== 'object') {
+                return;
+            }
+
+            const payload = effectConfig as Record<string, number | boolean>;
+
+            const nextConfig: Record<string, unknown> = {
+                ...this.ledConfig,
+                effect: effectName,
+            };
+
+            if (
+                'r' in payload &&
+                'g' in payload &&
+                'b' in payload &&
+                typeof payload.r === 'number' &&
+                typeof payload.g === 'number' &&
+                typeof payload.b === 'number'
+            ) {
+                nextConfig.color = rgbToHex(payload.r, payload.g, payload.b);
+            }
+
+            for (const [key, value] of Object.entries(payload)) {
+                if (key === 'r' || key === 'g' || key === 'b') continue;
+                nextConfig[key] = value;
+            }
+
+            this.ledConfig = nextConfig;
+            this.hasUnsavedLedChanges = false;
+        },
 
         /**
          * Sendet die aktuellen ledConfig-Daten an das physikalische Streamdeck

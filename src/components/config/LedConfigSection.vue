@@ -90,6 +90,7 @@ const EFFECT_PARAMS: Record<string, string[]> = {
   Chase: ['color', 'brightness', 'speed', 'size', 'reverse'],
   Comet: ['color', 'brightness', 'speed', 'tail', 'reverse'],
   Sparkle: ['color', 'brightness', 'speed', 'density'],
+  Aurora: ['brightness', 'speed', 'reverse'],
   ColorOrbit: ['hue', 'hue_shift', 'saturation', 'brightness', 'speed', 'reverse'],
   Astolfo: ['brightness', 'speed', 'saturation', 'spread', 'reverse']
 };
