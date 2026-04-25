@@ -44,8 +44,33 @@
         <template v-else>
           <div class="d-flex justify-space-between align-center mb-1">
             <label class="text-caption text-grey text-uppercase">{{ param.replace('_', ' ') }}</label>
-            <span class="text-caption font-weight-bold text-primary">{{ Math.round(store.ledConfig[param]) }}</span>
+
+            <span
+                v-if="editingParam !== param"
+                class="text-caption font-weight-bold text-primary edit-trigger"
+                title="Doppelklick zur direkten Eingabe"
+                @dblclick="startEditing(param)"
+            >
+              {{ Math.round(store.ledConfig[param]) }}
+            </span>
+
+            <div v-else class="inline-input-wrapper">
+              <v-text-field
+                  v-model.number="store.ledConfig[param]"
+                  type="number"
+                  :min="0"
+                  :max="param === 'hue' ? 360 : 255"
+                  density="compact"
+                  variant="underlined"
+                  hide-details
+                  autofocus
+                  color="primary"
+                  @blur="stopEditing(param)"
+                  @keyup.enter="stopEditing(param)"
+              ></v-text-field>
+            </div>
           </div>
+
           <v-slider
               v-model="store.ledConfig[param]"
               :min="0"
@@ -78,9 +103,27 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
 import { useStreamDeckStore } from '@/stores/streamdeck';
 
 const store = useStreamDeckStore();
+
+// --- State und Funktionen für das Inline-Editing ---
+const editingParam = ref<string | null>(null);
+
+const startEditing = (param: string) => {
+  editingParam.value = param;
+};
+
+const stopEditing = (param: string) => {
+  // Sicherheits-Check: Begrenzt die Eingabe auf den korrekten Maximalwert
+  const max = param === 'hue' ? 360 : 255;
+  if (store.ledConfig[param] > max) store.ledConfig[param] = max;
+  if (store.ledConfig[param] < 0) store.ledConfig[param] = 0;
+
+  editingParam.value = null;
+};
+// ---------------------------------------------------
 
 const EFFECT_PARAMS: Record<string, string[]> = {
   Solid: ['color', 'brightness'],
@@ -117,5 +160,32 @@ const EFFECT_LIST = Object.keys(EFFECT_PARAMS);
   /* Sanfter Verlauf nach oben, damit der Content unter dem Button verschwindet */
   background: linear-gradient(to top, #18181b 70%, transparent);
   margin-top: 20px;
+}
+
+/* --- Styles für das Inline-Editing --- */
+.edit-trigger {
+  cursor: pointer;
+  padding: 0 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.edit-trigger:hover {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.inline-input-wrapper {
+  width: 60px;
+  margin-top: -8px;
+}
+
+.inline-input-wrapper :deep(input[type="number"]::-webkit-outer-spin-button),
+.inline-input-wrapper :deep(input[type="number"]::-webkit-inner-spin-button) {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.inline-input-wrapper :deep(input[type="number"]) {
+  -moz-appearance: textfield;
+  text-align: right;
 }
 </style>

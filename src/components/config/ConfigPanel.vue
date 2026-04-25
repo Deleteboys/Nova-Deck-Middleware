@@ -80,31 +80,42 @@
               <div v-if="item.hasStep" class="bg-black pa-3 rounded border border-zinc-800">
                 <div class="d-flex justify-space-between align-center mb-1">
                   <div class="text-caption text-primary">Intervall (Step)</div>
-                  <div class="text-caption text-white font-weight-bold">{{ item.step > 0 ? '+' : '' }}{{ item.step }}%</div>
+
+                  <span
+                      v-if="editingStepTrigger !== item.triggerValue"
+                      class="text-caption text-white font-weight-bold edit-trigger"
+                      title="Klicken zur direkten Eingabe"
+                      @click="startEditingStep(item.triggerValue)"
+                  >
+                    {{ item.step > 0 ? '+' : '' }}{{ item.step }}%
+                  </span>
+
+                  <div v-else class="inline-input-wrapper">
+                    <v-text-field
+                        :model-value="item.step"
+                        type="number"
+                        density="compact"
+                        variant="underlined"
+                        hide-details
+                        autofocus
+                        color="primary"
+                        @update:model-value="(val) => updateActionStep(item.triggerValue, Number(val))"
+                        @blur="stopEditingStep"
+                        @keyup.enter="stopEditingStep"
+                    ></v-text-field>
+                  </div>
                 </div>
 
-                <div class="d-flex align-center gap-4">
-                  <v-slider
-                      :model-value="item.step"
-                      :min="-50"
-                      :max="50"
-                      :step="1"
-                      hide-details
-                      color="primary"
-                      class="flex-grow-1"
-                      @update:model-value="(val) => updateActionStep(item.triggerValue, val)"
-                  ></v-slider>
-
-                  <v-text-field
-                      :model-value="item.step"
-                      type="number"
-                      variant="outlined"
-                      density="compact"
-                      hide-details
-                      style="max-width: 80px;"
-                      @update:model-value="(val) => updateActionStep(item.triggerValue, Number(val))"
-                  ></v-text-field>
-                </div>
+                <v-slider
+                    :model-value="item.step"
+                    :min="-50"
+                    :max="50"
+                    :step="1"
+                    hide-details
+                    color="primary"
+                    class="flex-grow-1"
+                    @update:model-value="(val) => updateActionStep(item.triggerValue, val)"
+                ></v-slider>
               </div>
             </div>
           </v-card>
@@ -144,6 +155,18 @@ import { updateActionMapping, removeActionMapping, type TriggerType } from '@/se
 
 const store = useStreamDeckStore();
 const buttonLabel = ref('');
+
+// --- State und Funktionen für das Inline-Editing (Step) ---
+const editingStepTrigger = ref<TriggerType | null>(null);
+
+const startEditingStep = (trigger: TriggerType) => {
+  editingStepTrigger.value = trigger;
+};
+
+const stopEditingStep = () => {
+  editingStepTrigger.value = null;
+};
+// ----------------------------------------------------------
 
 const fKeys = Array.from({ length: 12 }, (_, i) => `F${i + 13}`);
 
@@ -296,5 +319,33 @@ const unbindSpecificAction = async (triggerToDelete: TriggerType) => {
   border-color: var(--v-primary-base, #3b82f6);
   background: rgba(59, 130, 246, 0.08) !important;
   transform: translateY(-1px);
+}
+
+/* --- Styles für Inline Editing in den Cards --- */
+.edit-trigger {
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.edit-trigger:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.inline-input-wrapper {
+  width: 50px;
+  margin-top: -8px;
+}
+
+.inline-input-wrapper :deep(input[type="number"]::-webkit-outer-spin-button),
+.inline-input-wrapper :deep(input[type="number"]::-webkit-inner-spin-button) {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.inline-input-wrapper :deep(input[type="number"]) {
+  -moz-appearance: textfield;
+  text-align: right;
+  color: white !important;
 }
 </style>
