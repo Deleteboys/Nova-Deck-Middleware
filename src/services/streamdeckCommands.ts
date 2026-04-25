@@ -193,6 +193,10 @@ export async function requestDeviceConfig(): Promise<void> {
   await sendToPico("GetConfig");
 }
 
+export async function getConnectionStatus(): Promise<boolean> {
+  return invoke<boolean>("get_connection_status");
+}
+
 // --- ACTION UND MAPPING API ---
 
 export async function updateActionMapping(

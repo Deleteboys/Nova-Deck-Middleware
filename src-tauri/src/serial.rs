@@ -1,4 +1,5 @@
 use std::io::{ErrorKind, Read, Write};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc, Mutex};
 use std::sync::mpsc::TryRecvError;
 use std::thread;
@@ -10,7 +11,12 @@ use crate::action::manager::ActionManager;
 use crate::action::tracker::InputTracker;
 use crate::protocol::{HostToPico, PicoToHost};
 
-pub fn start_serial_thread(app: AppHandle, rx: mpsc::Receiver<HostToPico>, action_manager: Arc<Mutex<ActionManager>>) {
+pub fn start_serial_thread(
+    app: AppHandle,
+    rx: mpsc::Receiver<HostToPico>,
+    action_manager: Arc<Mutex<ActionManager>>,
+    is_device_connected: Arc<AtomicBool>,
+) {
     let mut current_port: Option<Box<dyn serialport::SerialPort>> = None;
     let mut current_port_name: Option<String> = None;
     let mut accumulator: Vec<u8> = Vec::new();
@@ -32,6 +38,7 @@ pub fn start_serial_thread(app: AppHandle, rx: mpsc::Receiver<HostToPico>, actio
                         port.clear(serialport::ClearBuffer::All).ok();
 
                         println!("Serial service connected on {}", port_name);
+                        is_device_connected.store(true, Ordering::Relaxed);
                         let _ = app.emit("pico-connection", true);
 
                         let mut buf = [0u8; 64];
@@ -64,6 +71,7 @@ pub fn start_serial_thread(app: AppHandle, rx: mpsc::Receiver<HostToPico>, actio
                     if let Ok(slice) = postcard::to_slice(&cmd, &mut buf) {
                         if let Err(e) = port.write_all(slice).and_then(|_| port.flush()) {
                             println!("Send error: {}", e);
+                            is_device_connected.store(false, Ordering::Relaxed);
                             let _ = app.emit("pico-connection", false);
                             current_port = None;
                             current_port_name = None;
@@ -113,6 +121,7 @@ pub fn start_serial_thread(app: AppHandle, rx: mpsc::Receiver<HostToPico>, actio
                 Err(e) => {
                     let port_label = current_port_name.as_deref().unwrap_or("unknown");
                     println!("Connection to {} lost: {}", port_label, e);
+                    is_device_connected.store(false, Ordering::Relaxed);
                     let _ = app.emit("pico-connection", false);
                     current_port = None;
                     current_port_name = None;
@@ -125,6 +134,8 @@ pub fn start_serial_thread(app: AppHandle, rx: mpsc::Receiver<HostToPico>, actio
 
         thread::sleep(Duration::from_millis(2));
     }
+
+    is_device_connected.store(false, Ordering::Relaxed);
 }
 
 fn find_pico_port() -> Option<String> {

@@ -11,6 +11,7 @@ use crate::protocol::HostToPico;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::sync::{mpsc, Arc};
 use std::thread;
@@ -35,6 +36,7 @@ struct PersistedWindowState {
 struct AppState {
     serial_tx: Mutex<Option<mpsc::Sender<HostToPico>>>,
     is_quitting: Mutex<bool>,
+    is_device_connected: Arc<AtomicBool>,
     action_manager: Arc<Mutex<ActionManager>>,
 }
 
@@ -48,6 +50,11 @@ fn send_to_pico(state: State<AppState>, command: HostToPico) -> Result<(), Strin
     } else {
         Err("Keine Verbindung zum seriellen Thread".into())
     }
+}
+
+#[tauri::command]
+fn get_connection_status(state: State<AppState>) -> bool {
+    state.is_device_connected.load(Ordering::Relaxed)
 }
 
 fn is_quitting(app: &AppHandle) -> bool {
@@ -169,17 +176,21 @@ pub fn run() {
 
     let action_manager = Arc::new(Mutex::new(ActionManager::new()));
     let manager_for_thread = Arc::clone(&action_manager);
+    let is_device_connected = Arc::new(AtomicBool::new(false));
+    let is_device_connected_for_thread = Arc::clone(&is_device_connected);
 
     let app = tauri::Builder::default()
         // 1. AppState registrieren, damit `send_to_pico` darauf zugreifen kann
         .manage(AppState {
             serial_tx: Mutex::new(Some(tx)),
             is_quitting: Mutex::new(false),
+            is_device_connected,
             action_manager,
         })
         // 2. Den Command fur das Frontend registrieren
         .invoke_handler(tauri::generate_handler![
             send_to_pico,
+            get_connection_status,
             update_mapping,
             remove_mapping
         ])
@@ -216,7 +227,12 @@ pub fn run() {
             // --- SERIELLER THREAD SETUP ---
             let app_handle = app.handle().clone();
             thread::spawn(move || {
-                serial::start_serial_thread(app_handle, rx, manager_for_thread);
+                serial::start_serial_thread(
+                    app_handle,
+                    rx,
+                    manager_for_thread,
+                    is_device_connected_for_thread,
+                );
             });
 
             // --- FENSTER LOGIK ---

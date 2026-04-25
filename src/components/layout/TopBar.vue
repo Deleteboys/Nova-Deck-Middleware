@@ -22,6 +22,18 @@
     </div>
 
     <div class="d-flex align-center justify-end flex-1-1-0">
+      <v-chip
+          size="small"
+          :color="store.isDeviceConnected ? 'success' : 'error'"
+          variant="tonal"
+          class="mr-3"
+      >
+        <v-icon start size="14">
+          {{ store.isDeviceConnected ? 'mdi-lan-connect' : 'mdi-lan-disconnect' }}
+        </v-icon>
+        {{ store.isDeviceConnected ? 'Deck verbunden' : 'Deck getrennt' }}
+      </v-chip>
+
       <v-slide-x-reverse-transition>
         <v-select
             v-if="$route.name === 'config'"

@@ -16,7 +16,11 @@
 import { onMounted, onUnmounted } from 'vue';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { useStreamDeckStore } from '@/stores/streamdeck';
-import { requestDeviceConfig, type DeviceConfig } from '@/services/streamdeckCommands';
+import {
+  getConnectionStatus,
+  requestDeviceConfig,
+  type DeviceConfig
+} from '@/services/streamdeckCommands';
 import TopBar from "./components/layout/TopBar.vue";
 
 const store = useStreamDeckStore();
@@ -46,6 +50,7 @@ onMounted(() => {
   store.initHardwareWatcher();
 
   listen<boolean>('pico-connection', async (event) => {
+    store.setDeviceConnected(event.payload);
     if (!event.payload) return;
 
     try {
@@ -62,9 +67,16 @@ onMounted(() => {
     }
   }).then((unlisten) => unlistenCallbacks.push(unlisten));
 
-  requestDeviceConfig().catch(() => {
-    // Absichtlich stumm: beim App-Start kann noch kein Gerät verbunden sein.
-  });
+  getConnectionStatus()
+      .then(async (isConnected) => {
+        store.setDeviceConnected(isConnected);
+        if (isConnected) {
+          await requestDeviceConfig();
+        }
+      })
+      .catch(() => {
+        store.setDeviceConnected(false);
+      });
 
   console.log("Hardware-Synchronisation aktiv.");
 });

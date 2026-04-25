@@ -39,6 +39,7 @@ export const useStreamDeckStore = defineStore('streamdeck', {
     state: () => ({
         currentProfileId: 0,
         selectedElementId: null as string | null,
+        isDeviceConnected: false,
         // Flag für ungespeicherte LED-Änderungen
         hasUnsavedLedChanges: false,
         suppressLedDirtyTracking: false,
@@ -68,6 +69,10 @@ export const useStreamDeckStore = defineStore('streamdeck', {
     },
 
     actions: {
+        setDeviceConnected(isConnected: boolean) {
+            this.isDeviceConnected = isConnected;
+        },
+
         setProfile(id: number) {
             this.currentProfileId = id;
             this.selectedElementId = null;
