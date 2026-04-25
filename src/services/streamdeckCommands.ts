@@ -1,5 +1,23 @@
 import { invoke } from "@tauri-apps/api/core";
 
+// --- TYPEN FÜR RUST-KOMMUNIKATION ---
+
+export type TriggerType =
+    | 'ShortPress'
+    | 'LongPress'
+    | 'DoublePress'
+    | 'TurnLeft'
+    | 'TurnRight'
+    | 'PushTurnLeft'
+    | 'PushTurnRight'
+    | 'PushPress';
+
+export type ActionConfig =
+    | { type: 'PressKey'; key: string }
+    | { type: 'SpotifyVolume'; step: number }
+    | { type: 'ToggleAudio'; device1: string; device2: string }
+    | { type: 'MasterVolume'; step: number };
+
 export type LedEffectCommand =
     | {
   Solid: {
@@ -120,6 +138,8 @@ type HostToPicoCommand =
   };
 };
 
+// --- LED UND HARDWARE API ---
+
 async function sendToPico(command: HostToPicoCommand): Promise<void> {
   await invoke("send_to_pico", { command });
 }
@@ -164,14 +184,11 @@ export async function startBootloader(): Promise<void> {
   await sendToPico("StartBootloader");
 }
 
-export type ActionConfig =
-    | { type: 'PressKey'; key: string }
-    | { type: 'SpotifyVolume'; volume: number }
-    | { type: 'ToggleAudio'; device1: string; device2: string };
+// --- ACTION UND MAPPING API ---
 
 export async function updateActionMapping(
     elementId: string,
-    triggerType: string,
+    triggerType: TriggerType,
     actionConfig: ActionConfig
 ): Promise<void> {
   try {
@@ -187,9 +204,10 @@ export async function updateActionMapping(
     throw error;
   }
 }
+
 export async function removeActionMapping(
     elementId: string,
-    triggerType: string
+    triggerType: TriggerType
 ): Promise<void> {
   try {
     await invoke("remove_mapping", {

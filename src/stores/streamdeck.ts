@@ -1,6 +1,6 @@
-import {defineStore} from 'pinia'
-import {watch} from 'vue'
-import {setEffect, type LedEffectCommand} from '@/services/streamdeckCommands'
+import { defineStore } from 'pinia'
+import { watch } from 'vue'
+import { setEffect, type LedEffectCommand, type TriggerType } from '@/services/streamdeckCommands'
 
 // Hilfsfunktion zur Konvertierung von Hex zu RGB
 const hexToRgb = (hex: string) => {
@@ -10,13 +10,17 @@ const hexToRgb = (hex: string) => {
     return {r, g, b};
 };
 
-type ProfileKeyConfig = {
-    value?: number;
-    label?: string;
-    icon?: string;
+// --- NEUE STRUKTUR FÜR MEHRFACH-BELEGUNGEN ---
+export type ActionSetup = {
     action?: string;
-    actionValue?: string;
+    icon?: string;
     config?: any;
+};
+
+type ProfileKeyConfig = {
+    label?: string;
+    // Ein Objekt, das für jeden TriggerType (z.B. 'ShortPress', 'TurnRight') eine eigene Konfiguration hält
+    actions?: Partial<Record<TriggerType, ActionSetup>>;
 };
 
 type Profile = {
@@ -66,18 +70,42 @@ export const useStreamDeckStore = defineStore('streamdeck', {
             this.selectedElementId = this.selectedElementId === id ? null : id;
         },
 
-        updateElementConfig(id: string | null, updates: Partial<ProfileKeyConfig>) {
+        // --- NEUE MAPPING FUNKTIONEN ---
+
+        // Aktualisiert nur das Text-Label des Buttons
+        updateElementLabel(id: string | null, label: string) {
             if (!id || !this.activeProfile) return;
 
             if (!this.activeProfile.keys[id]) {
                 this.activeProfile.keys[id] = {};
             }
-
-            this.activeProfile.keys[id] = {
-                ...this.activeProfile.keys[id],
-                ...updates
-            };
+            this.activeProfile.keys[id].label = label;
         },
+
+        // Speichert eine Aktion gezielt für einen bestimmten Auslöser (Trigger)
+// Speichert eine Aktion gezielt für einen bestimmten Auslöser (Trigger)
+        updateElementAction(id: string | null, trigger: TriggerType, setup: ActionSetup) {
+            if (!id || !this.activeProfile) return;
+
+            if (!this.activeProfile.keys[id]) {
+                this.activeProfile.keys[id] = {};
+            }
+            if (!this.activeProfile.keys[id].actions) {
+                this.activeProfile.keys[id].actions = {};
+            }
+
+            this.activeProfile.keys[id].actions![trigger] = setup;
+        },
+
+        // Löscht nur die Aktion des ausgewählten Triggers, Label und andere Trigger bleiben erhalten
+        clearElementAction(id: string | null, trigger: TriggerType) {
+            if (!id || !this.activeProfile || !this.activeProfile.keys[id]?.actions) return;
+
+            delete this.activeProfile.keys[id].actions![trigger];
+        },
+
+
+        // --- LED FUNKTIONEN ---
 
         /**
          * Sendet die aktuellen ledConfig-Daten an das physikalische Streamdeck
@@ -186,18 +214,6 @@ export const useStreamDeckStore = defineStore('streamdeck', {
             } catch (error) {
                 console.error("Fehler beim Senden an Pico:", error);
             }
-
-        },
-
-        clearElementAction(id: string | null) {
-            if (!id || !this.activeProfile) return;
-
-            if (this.activeProfile.keys[id]) {
-                // Wir löschen nur die Aktions-Daten, das Label (Text) bleibt erhalten
-                this.activeProfile.keys[id].action = undefined;
-                this.activeProfile.keys[id].icon = undefined;
-                this.activeProfile.keys[id].config = undefined;
-            }
         },
 
         // Hilfsmethode um den Watcher zu initialisieren (wird in App.vue aufgerufen)
@@ -210,6 +226,5 @@ export const useStreamDeckStore = defineStore('streamdeck', {
                 {deep: true}
             );
         }
-
     }
 })

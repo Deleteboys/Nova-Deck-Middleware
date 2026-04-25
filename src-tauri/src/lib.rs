@@ -178,7 +178,11 @@ pub fn run() {
             action_manager,
         })
         // 2. Den Command fur das Frontend registrieren
-        .invoke_handler(tauri::generate_handler![send_to_pico, update_mapping, remove_mapping])
+        .invoke_handler(tauri::generate_handler![
+            send_to_pico,
+            update_mapping,
+            remove_mapping
+        ])
         .setup(move |app| {
             // --- TRAY MENU SETUP ---
             let quit_i = MenuItem::with_id(app, "quit", "Beenden", true, None::<&str>)?;
@@ -281,8 +285,9 @@ pub fn run() {
 #[serde(tag = "type")] // <-- Das ist die Magie!
 pub enum ActionConfig {
     PressKey { key: String },
-    SpotifyVolume { volume: u8 },
+    SpotifyVolume { step: i8 },
     ToggleAudio { device1: String, device2: String },
+    MasterVolume { step: i8 },
     // ... hier kommen alle deine zukünftigen Module rein
 }
 
@@ -312,12 +317,16 @@ fn parse_key(key_str: &str) -> enigo::Key {
 }
 
 // Factory, die das Config-Enum in ausführbaren Code (Action Trait) verwandelt
-fn create_action(config: ActionConfig) -> Box<dyn crate::action::actions::Action> {
+fn create_action(config: ActionConfig) -> Box<dyn action::actions::Action> {
     match config {
-        ActionConfig::PressKey { key } => {
-            Box::new(crate::modules::press_key_action::PressKeyAction {
-                key: parse_key(&key),
-            })
+        ActionConfig::PressKey { key } => Box::new(modules::press_key_action::PressKeyAction {
+            key: parse_key(&key),
+        }),
+        ActionConfig::SpotifyVolume { step } => {
+            Box::new(modules::spotify_volume::SpotifyVolumeAction { step })
+        }
+        ActionConfig::MasterVolume { step } => {
+            Box::new(modules::master_volume::MasterVolumeAction { step })
         }
         // ActionConfig::SpotifyVolume { volume } => {
         //     Box::new(crate::modules::spotify_action::SetSpotifyVolumeAction {
@@ -396,7 +405,10 @@ fn remove_mapping(state: State<AppState>, payload: UnmapPayload) -> Result<(), S
     // Mapping aus dem Manager löschen
     if let Ok(mut manager) = state.action_manager.lock() {
         manager.unregister(&trigger);
-        println!("Aktion entfernt von: {} ({})", payload.element_id, payload.trigger_type);
+        println!(
+            "Aktion entfernt von: {} ({})",
+            payload.element_id, payload.trigger_type
+        );
     }
 
     Ok(())

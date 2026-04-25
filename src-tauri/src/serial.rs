@@ -6,8 +6,6 @@ use std::time::Duration;
 
 use serialport::{available_ports, SerialPortType};
 use tauri::{AppHandle, Emitter};
-use enigo::Key;
-use crate::action::actions::{ButtonEvent, HardwareTrigger, PressKeyAction};
 use crate::action::manager::ActionManager;
 use crate::action::tracker::InputTracker;
 use crate::protocol::{HostToPico, PicoToHost};
