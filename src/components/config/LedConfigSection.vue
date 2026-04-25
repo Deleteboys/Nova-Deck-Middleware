@@ -1,92 +1,109 @@
 <template>
-  <div class="led-config pb-12">
-    <h3 class="mb-6 d-flex align-center text-uppercase text-caption font-weight-bold text-grey">
-      <v-icon size="small" class="mr-2">mdi-led-variant</v-icon> Global LED Effects
-    </h3>
+  <div class="led-config pa-4 d-flex flex-column fill-height">
 
-    <v-select
-        v-model="store.ledConfig.effect"
-        :items="EFFECT_LIST"
-        label="Effekt"
-        variant="filled"
-        density="compact"
-        rounded="lg"
-        class="mb-4"
-    ></v-select>
-
-    <v-divider class="mb-6"></v-divider>
-
-    <div class="controls-container">
-      <div v-for="param in EFFECT_PARAMS[store.ledConfig.effect]" :key="param" class="control-group mb-4">
-
-        <template v-if="param === 'color'">
-          <label class="text-caption text-grey mb-2 d-block text-uppercase font-weight-medium">Farbe</label>
-          <v-color-picker
-              v-model="store.ledConfig.color"
-              hide-inputs flat width="100%" canvas-height="80"
-              class="bg-transparent border rounded-lg"
-          ></v-color-picker>
-        </template>
-
-        <template v-else-if="param === 'reverse'">
-          <div class="d-flex justify-space-between align-center mb-1">
-            <label class="text-caption text-grey text-uppercase">Richtung Umkehren</label>
-          </div>
-          <v-switch
-              v-model="store.ledConfig[param]"
-              color="primary"
-              hide-details
-              density="compact"
-              inset
-          ></v-switch>
-        </template>
-
-        <template v-else>
-          <div class="d-flex justify-space-between align-center mb-1">
-            <label class="text-caption text-grey text-uppercase">{{ param.replace('_', ' ') }}</label>
-
-            <span
-                v-if="editingParam !== param"
-                class="text-caption font-weight-bold text-white edit-trigger"
-                title="Klicken zur direkten Eingabe"
-                @click="startEditing(param)"
-            >
-              {{ Math.round(store.ledConfig[param]) }}
-            </span>
-
-            <div v-else class="inline-input-wrapper">
-              <v-text-field
-                  v-model.number="store.ledConfig[param]"
-                  type="number"
-                  :min="0"
-                  :max="param === 'hue' ? 360 : 255"
-                  density="compact"
-                  variant="underlined"
-                  hide-details
-                  autofocus
-                  color="primary"
-                  @blur="stopEditing(param)"
-                  @keyup.enter="stopEditing(param)"
-              ></v-text-field>
-            </div>
-          </div>
-
-          <v-slider
-              v-model="store.ledConfig[param]"
-              :min="0"
-              :max="param === 'hue' ? 360 : 255"
-              step="1"
-              hide-details
-              color="primary"
-              track-color="zinc-700"
-              density="compact"
-          ></v-slider>
-        </template>
+    <div class="mb-5">
+      <div class="d-flex align-center text-caption text-primary uppercase tracking-widest font-weight-bold mb-1">
+        <v-icon size="small" class="mr-2">mdi-led-variant</v-icon>
+        Global LED Effects
       </div>
     </div>
 
+    <v-divider class="mb-5 border-opacity-25" color="white"></v-divider>
+
+    <div class="d-flex justify-space-between align-center mb-4">
+      <div class="text-body-2 text-grey font-weight-medium">Aktiver Effekt</div>
+
+      <v-select
+          v-model="store.ledConfig.effect"
+          :items="EFFECT_LIST"
+          variant="plain"
+          density="compact"
+          hide-details
+          class="compact-effect-select"
+      ></v-select>
+    </div>
+
+    <div class="d-flex flex-column mb-8">
+      <v-card color="#18181b" variant="flat" class="border border-zinc-800 rounded-lg overflow-hidden">
+
+        <div
+            v-for="(param, index) in EFFECT_PARAMS[store.ledConfig.effect]"
+            :key="param"
+            class="px-3 py-3"
+            :class="{ 'border-b border-zinc-700': index !== EFFECT_PARAMS[store.ledConfig.effect].length - 1 }"
+        >
+
+          <template v-if="param === 'color'">
+            <div class="text-body-2 text-grey mb-3">Farbe wählen</div>
+            <v-color-picker
+                v-model="store.ledConfig.color"
+                hide-inputs flat width="100%" canvas-height="80"
+                class="bg-transparent"
+                elevation="0"
+            ></v-color-picker>
+          </template>
+
+          <template v-else-if="param === 'reverse'">
+            <div class="d-flex justify-space-between align-center">
+              <div class="text-body-2 text-grey">Richtung umkehren</div>
+              <v-switch
+                  v-model="store.ledConfig[param]"
+                  color="primary"
+                  hide-details
+                  density="compact"
+                  inset
+                  style="flex: 0 0 auto;"
+              ></v-switch>
+            </div>
+          </template>
+
+          <template v-else>
+            <div class="d-flex justify-space-between align-center mb-1">
+              <div class="text-body-2 text-grey text-capitalize">{{ param.replace('_', ' ') }}</div>
+
+              <span
+                  v-if="editingParam !== param"
+                  class="text-body-2 text-white font-weight-bold edit-trigger"
+                  title="Klicken zur direkten Eingabe"
+                  @click="startEditing(param)"
+              >
+                {{ Math.round(store.ledConfig[param]) }}
+              </span>
+
+              <div v-else class="inline-input-wrapper">
+                <v-text-field
+                    v-model.number="store.ledConfig[param]"
+                    type="number"
+                    :min="0"
+                    :max="param === 'hue' ? 360 : 255"
+                    density="compact"
+                    variant="underlined"
+                    hide-details
+                    autofocus
+                    color="primary"
+                    @blur="stopEditing(param)"
+                    @keyup.enter="stopEditing(param)"
+                ></v-text-field>
+              </div>
+            </div>
+
+            <v-slider
+                v-model="store.ledConfig[param]"
+                :min="0"
+                :max="param === 'hue' ? 360 : 255"
+                step="1"
+                hide-details
+                color="primary"
+                track-color="zinc-700"
+                density="compact"
+            ></v-slider>
+          </template>
+        </div>
+      </v-card>
+    </div>
+
     <v-fade-transition>
-      <div v-if="store.hasUnsavedLedChanges" class="save-bar">
+      <div v-if="store.hasUnsavedLedChanges" class="save-bar mt-auto">
         <v-btn
             color="primary"
             prepend-icon="mdi-cloud-upload"
@@ -94,6 +111,7 @@
             rounded="lg"
             elevation="12"
             height="48"
+            class="text-none font-weight-medium"
             @click="store.saveLedSettings"
         >
           An Streamdeck senden
@@ -117,7 +135,6 @@ const startEditing = (param: string) => {
 };
 
 const stopEditing = (param: string) => {
-  // Sicherheits-Check: Begrenzt die Eingabe auf den korrekten Maximalwert
   const max = param === 'hue' ? 360 : 255;
   if (store.ledConfig[param] > max) store.ledConfig[param] = max;
   if (store.ledConfig[param] < 0) store.ledConfig[param] = 0;
@@ -143,27 +160,43 @@ const EFFECT_LIST = Object.keys(EFFECT_PARAMS);
 </script>
 
 <style scoped>
-.control-group {
-  background: rgba(255, 255, 255, 0.03);
-  padding: 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+/* Angepasstes Effekt Dropdown */
+.compact-effect-select {
+  max-width: 150px;
+}
+.compact-effect-select :deep(.v-field__input) {
+  font-size: 0.875rem !important;
+  text-align: right;
+  color: #6366f1 !important; /* primary */
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  min-height: 28px !important;
+}
+.compact-effect-select :deep(.v-field__append-inner) {
+  padding-top: 0 !important;
+  align-items: center;
 }
 
-.text-primary { color: #6366f1 !important; }
+/* V-Color-Picker Tweaks für Flat-Design */
+:deep(.v-color-picker) {
+  background: transparent !important;
+}
+:deep(.v-color-picker__canvas) {
+  border-radius: 8px;
+  overflow: hidden;
+}
 
 .save-bar {
   position: sticky;
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 20px 12px;
-  /* Sanfter Verlauf nach oben, damit der Content unter dem Button verschwindet */
-  background: linear-gradient(to top, #18181b 70%, transparent);
-  margin-top: 20px;
+  padding: 20px 0 0 0;
+  background: linear-gradient(to top, #18181b 80%, transparent);
+  z-index: 10;
 }
 
-/* --- Styles für das Inline-Editing (angepasst an Actions) --- */
+/* --- INLINE EDITING STYLES (Identisch zum Config-Panel) --- */
 .edit-trigger {
   cursor: pointer;
   padding: 2px 6px;
