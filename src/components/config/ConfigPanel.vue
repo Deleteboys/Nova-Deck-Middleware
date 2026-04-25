@@ -9,102 +9,101 @@
           label="Button Beschriftung"
           variant="outlined"
           density="comfortable"
-          class="mb-4"
+          class="mb-6"
+          hide-details
           @input="saveChanges"
       ></v-text-field>
 
-      <v-select
-          v-model="selectedTriggerType"
-          :items="triggerOptions"
-          label="Auslöser (Event)"
-          variant="outlined"
-          density="comfortable"
-          class="mb-4"
-      ></v-select>
+      <v-divider class="mb-6 border-opacity-25" color="white"></v-divider>
 
-      <div v-if="hasKeyConfig" class="mb-4 pa-3 bg-zinc-800 rounded-lg border border-primary-darken-1">
-        <div class="text-caption text-primary mb-2 font-weight-bold">
-          TASTE WÄHLEN: {{ selectedTriggerDisplayName }}
-        </div>
-        <v-select
-            v-model="localKey"
-            :items="fKeys"
-            label="Funktionstaste"
-            variant="underlined"
-            density="compact"
-            @update:modelValue="updateActionKey"
-        ></v-select>
+      <div class="mb-2 d-flex justify-space-between align-center">
+        <div class="text-caption text-grey">Zugewiesene Aktionen:</div>
       </div>
 
-      <div v-if="hasStepConfig" class="mb-4 pa-3 bg-zinc-800 rounded-lg border border-primary-darken-1">
-        <div class="text-caption text-primary mb-1 font-weight-bold">
-          WERTE ANPASSEN: {{ selectedTriggerDisplayName }}
-        </div>
-        <div class="text-caption text-grey mb-1">
-          Intervall: {{ localStep > 0 ? '+' : '' }}{{ localStep }}%
-        </div>
-        <v-slider
-            v-model="localStep"
-            :min="-50"
-            :max="50"
-            :step="1"
-            hide-details
-            thumb-label
-            color="primary"
-            @end="updateActionStep"
-        ></v-slider>
-        <v-text-field
-            v-model.number="localStep"
-            type="number"
-            variant="underlined"
-            density="compact"
-            suffix="%"
-            @change="updateActionStep"
-        ></v-text-field>
+      <div v-if="boundActionsList.length === 0" class="pa-6 border-dashed rounded-lg border-zinc-700 text-center text-grey mb-6">
+        <v-icon icon="mdi-gesture-tap" size="large" class="mb-2 opacity-50"></v-icon>
+        <div class="text-body-2">Klicke auf eine Aktion in der Bibliothek, um sie hinzuzufügen.</div>
       </div>
 
-      <div class="pa-4 bg-black rounded-lg border border-zinc-700 mb-6">
-        <div class="text-caption text-grey mb-3">Zugewiesene Aktionen (Klicken zum Bearbeiten):</div>
-
-        <div v-if="boundActionsList.length === 0" class="text-body-2 text-grey-darken-1 text-center py-2">
-          Noch keine Aktionen zugewiesen.
-        </div>
-
-        <div
+      <div class="d-flex flex-column" style="gap: 16px; margin-bottom: 32px;">
+        <v-card
             v-for="item in boundActionsList"
             :key="item.triggerValue"
-            @click="selectedTriggerType = item.triggerValue"
-            :class="[
-              'd-flex justify-space-between align-center mb-2 pa-2 rounded border cursor-pointer transition-swing',
-              selectedTriggerType === item.triggerValue
-                ? 'bg-primary-darken-4 border-primary'
-                : 'bg-zinc-900 border-zinc-800 hover-zinc-800'
-            ]"
+            color="#18181b"
+            elevation="0"
+            class="border border-zinc-700 rounded-lg"
         >
-          <div class="d-flex align-center">
-            <v-icon
-                :icon="item.icon"
-                :color="selectedTriggerType === item.triggerValue ? 'primary' : 'grey'"
-                class="mr-3"
-                size="small"
-            ></v-icon>
-            <div>
-              <div class="text-caption text-grey" style="line-height: 1.2;">{{ item.triggerName }}</div>
-              <div class="text-body-2" :class="{'text-primary font-weight-bold': selectedTriggerType === item.triggerValue}">
-                {{ item.actionName }}
-                <span v-if="item.step !== undefined">({{ item.step > 0 ? '+' : '' }}{{ item.step }}%)</span>
-                <span v-if="item.key !== undefined">({{ item.key }})</span>
+          <div class="d-flex align-center justify-space-between pa-3 border-b border-zinc-800 bg-zinc-800">
+            <div class="d-flex align-center">
+              <v-icon :icon="item.icon" color="primary" class="mr-3" size="small"></v-icon>
+              <span class="text-body-2 font-weight-bold text-white">{{ item.actionName }}</span>
+            </div>
+            <v-btn
+                size="x-small"
+                color="error"
+                variant="text"
+                icon="mdi-trash-can-outline"
+                @click="unbindSpecificAction(item.triggerValue)"
+            ></v-btn>
+          </div>
+
+          <div class="pa-3">
+
+            <v-select
+                :model-value="item.triggerValue"
+                :items="triggerOptions"
+                label="Ausgelöst durch:"
+                variant="outlined"
+                density="compact"
+                bg-color="black"
+                hide-details
+                class="mb-3"
+                @update:model-value="(newVal: TriggerType) => moveActionInList(item.triggerValue, newVal)"
+            ></v-select>
+
+            <div v-if="item.hasKey" class="bg-black pa-3 rounded border border-zinc-800">
+              <div class="text-caption text-primary mb-2">Taste wählen:</div>
+              <v-select
+                  :model-value="item.key"
+                  :items="fKeys"
+                  variant="underlined"
+                  density="compact"
+                  hide-details
+                  @update:model-value="(val) => updateActionKey(item.triggerValue, val)"
+              ></v-select>
+            </div>
+
+            <div v-if="item.hasStep" class="bg-black pa-3 rounded border border-zinc-800">
+              <div class="d-flex justify-space-between align-center mb-1">
+                <div class="text-caption text-primary">Intervall (Step):</div>
+                <div class="text-caption text-white">{{ item.step > 0 ? '+' : '' }}{{ item.step }}%</div>
+              </div>
+
+              <div class="d-flex align-center" style="gap: 16px;">
+                <v-slider
+                    :model-value="item.step"
+                    :min="-50"
+                    :max="50"
+                    :step="1"
+                    hide-details
+                    color="primary"
+                    class="flex-grow-1"
+                    @update:model-value="(val) => updateActionStep(item.triggerValue, val)"
+                ></v-slider>
+                <v-text-field
+                    :model-value="item.step"
+                    type="number"
+                    variant="outlined"
+                    density="compact"
+                    hide-details
+                    style="max-width: 80px;"
+                    @update:model-value="(val) => updateActionStep(item.triggerValue, Number(val))"
+                ></v-text-field>
               </div>
             </div>
+
           </div>
-          <v-btn
-              size="x-small"
-              color="error"
-              variant="text"
-              icon="mdi-delete"
-              @click.stop="unbindSpecificAction(item.triggerValue)"
-          ></v-btn>
-        </div>
+        </v-card>
       </div>
     </div>
 
@@ -116,7 +115,7 @@
 
     <div class="flex-grow-1 overflow-y-auto">
       <div class="text-overline mb-4 text-grey">Aktionen Bibliothek</div>
-      <v-list bg-color="transparent" density="compact" nav>
+      <v-list bg-color="transparent" density="compact" nav class="pa-0">
         <v-list-item
             v-for="a in actionsLibrary"
             :key="a.title"
@@ -140,13 +139,7 @@ import { updateActionMapping, removeActionMapping, type TriggerType } from '@/se
 
 const store = useStreamDeckStore();
 const buttonLabel = ref('');
-const selectedTriggerType = ref<TriggerType>('ShortPress');
 
-// Lokale Variablen für die Editoren
-const localStep = ref(5);
-const localKey = ref('F13');
-
-// Generiert das Array ['F13', 'F14', ... 'F24']
 const fKeys = Array.from({ length: 12 }, (_, i) => `F${i + 13}`);
 
 const actionsLibrary = [
@@ -156,13 +149,14 @@ const actionsLibrary = [
   { title: 'Audio Toggle', icon: 'mdi-swap-horizontal', config: { type: 'ToggleAudio', device1: 'HyperX', device2: 'Speakers' } }
 ];
 
+// Die verfügbaren Auslöser für das aktuell gewählte Hardware-Element
 const triggerOptions = computed<{ title: string; value: TriggerType }[]>(() => {
   if (store.selectedElementId?.startsWith('enc-')) {
     return [
-      { title: 'Nach Rechts drehen', value: 'TurnRight' },
-      { title: 'Nach Links drehen', value: 'TurnLeft' },
-      { title: 'Gedrückt + Rechts drehen', value: 'PushTurnRight' },
-      { title: 'Gedrückt + Links drehen', value: 'PushTurnLeft' },
+      { title: 'Rechts drehen', value: 'TurnRight' },
+      { title: 'Links drehen', value: 'TurnLeft' },
+      { title: 'Drücken + Rechts', value: 'PushTurnRight' },
+      { title: 'Drücken + Links', value: 'PushTurnLeft' },
       { title: 'Nur Drücken', value: 'PushPress' }
     ];
   }
@@ -173,26 +167,7 @@ const triggerOptions = computed<{ title: string; value: TriggerType }[]>(() => {
   ];
 });
 
-const triggerDisplayNames: Record<string, string> = {
-  'ShortPress': 'Single Click', 'DoublePress': 'Double Click', 'LongPress': 'Long Press',
-  'TurnRight': 'Rechts drehen', 'TurnLeft': 'Links drehen',
-  'PushTurnRight': 'Drücken + Rechts', 'PushTurnLeft': 'Drücken + Links', 'PushPress': 'Nur Drücken'
-};
-
-const selectedTriggerDisplayName = computed(() => triggerDisplayNames[selectedTriggerType.value] || selectedTriggerType.value);
-
-// Prüft, ob ein Step-Editor angezeigt werden soll
-const hasStepConfig = computed(() => {
-  const currentAction = store.activeProfile?.keys[store.selectedElementId!]?.actions?.[selectedTriggerType.value];
-  return currentAction?.config && 'step' in currentAction.config;
-});
-
-// Prüft, ob ein Tasten-Editor angezeigt werden soll
-const hasKeyConfig = computed(() => {
-  const currentAction = store.activeProfile?.keys[store.selectedElementId!]?.actions?.[selectedTriggerType.value];
-  return currentAction?.config && 'key' in currentAction.config;
-});
-
+// Liest alle zugewiesenen Aktionen sauber für das Template aus
 const boundActionsList = computed(() => {
   if (!store.selectedElementId) return [];
   const actionsMap = store.activeProfile?.keys[store.selectedElementId]?.actions;
@@ -200,77 +175,21 @@ const boundActionsList = computed(() => {
 
   return Object.entries(actionsMap).map(([triggerValue, setup]) => ({
     triggerValue: triggerValue as TriggerType,
-    triggerName: triggerDisplayNames[triggerValue] || triggerValue,
     actionName: setup?.action || 'Unbekannt',
     icon: setup?.icon || 'mdi-help',
+    hasStep: setup?.config && 'step' in setup.config,
     step: setup?.config?.step,
+    hasKey: setup?.config && 'key' in setup.config,
     key: setup?.config?.key
   }));
 });
 
-// Synchronisiert die UI-Felder (Slider, Dropdown) mit den Werten der ausgewählten Aktion
-const syncLocalVariables = () => {
-  if (!store.selectedElementId) return;
-  const currentAction = store.activeProfile?.keys[store.selectedElementId]?.actions?.[selectedTriggerType.value];
-
-  if (currentAction?.config && 'step' in currentAction.config) {
-    localStep.value = currentAction.config.step;
-  } else {
-    localStep.value = selectedTriggerType.value.includes('Left') ? -5 : 5;
-  }
-
-  if (currentAction?.config && 'key' in currentAction.config) {
-    localKey.value = currentAction.config.key;
-  } else {
-    localKey.value = 'F13';
-  }
-};
-
+// Lädt nur noch das Label, wenn man ein Element anklickt
 watch(() => store.selectedElementId, (newId) => {
   if (newId) {
     buttonLabel.value = store.activeProfile?.keys[newId]?.label || '';
-    selectedTriggerType.value = newId.startsWith('enc-') ? 'TurnRight' : 'ShortPress';
-    syncLocalVariables();
   }
 }, { immediate: true });
-
-watch(selectedTriggerType, () => {
-  syncLocalVariables();
-});
-
-const updateActionStep = async () => {
-  if (!store.selectedElementId) return;
-  const currentAction = store.activeProfile?.keys[store.selectedElementId]?.actions?.[selectedTriggerType.value];
-  if (currentAction) {
-    const updatedConfig = { ...currentAction.config, step: localStep.value };
-
-    store.updateElementAction(store.selectedElementId, selectedTriggerType.value, {
-      ...currentAction,
-      config: updatedConfig
-    });
-
-    try {
-      await updateActionMapping(store.selectedElementId, selectedTriggerType.value, updatedConfig);
-    } catch (e) { console.error(e); }
-  }
-};
-
-const updateActionKey = async () => {
-  if (!store.selectedElementId) return;
-  const currentAction = store.activeProfile?.keys[store.selectedElementId]?.actions?.[selectedTriggerType.value];
-  if (currentAction) {
-    const updatedConfig = { ...currentAction.config, key: localKey.value };
-
-    store.updateElementAction(store.selectedElementId, selectedTriggerType.value, {
-      ...currentAction,
-      config: updatedConfig
-    });
-
-    try {
-      await updateActionMapping(store.selectedElementId, selectedTriggerType.value, updatedConfig);
-    } catch (e) { console.error(e); }
-  }
-};
 
 const saveChanges = () => {
   if (store.selectedElementId) {
@@ -278,32 +197,83 @@ const saveChanges = () => {
   }
 };
 
+// Logik zum Hinzufügen einer NEUEN Aktion aus der Bibliothek
 const assignAction = async (action: any) => {
-  if (store.selectedElementId) {
-    const config = { ...action.config };
+  if (!store.selectedElementId) return;
 
-    // Übernehme direkt die aktuellen Werte aus den UI-Editoren, falls zutreffend
-    if ('step' in config) config.step = localStep.value;
-    if ('key' in config) config.key = localKey.value;
+  // 1. Finde einen freien Slot (Auslöser), der noch nicht belegt ist
+  const usedTriggers = Object.keys(store.activeProfile?.keys[store.selectedElementId]?.actions || {});
+  let targetTrigger: TriggerType = triggerOptions.value[0].value; // Fallback: Erster Auslöser
 
-    store.updateElementAction(store.selectedElementId, selectedTriggerType.value, {
-      action: action.title,
-      icon: action.icon,
-      config: config
-    });
+  for (const opt of triggerOptions.value) {
+    if (!usedTriggers.includes(opt.value)) {
+      targetTrigger = opt.value;
+      break; // Ersten freien Platz gefunden!
+    }
+  }
 
-    try {
-      await updateActionMapping(store.selectedElementId, selectedTriggerType.value, config);
-    } catch (e) { console.error(e); }
+  // 2. Setze smarte Standardwerte
+  const config = { ...action.config };
+  if ('step' in config) config.step = targetTrigger.includes('Left') ? -5 : 5;
+  if ('key' in config) config.key = 'F13';
+
+  // 3. Im Store speichern
+  store.updateElementAction(store.selectedElementId, targetTrigger, {
+    action: action.title,
+    icon: action.icon,
+    config: config
+  });
+
+  // 4. An Rust senden
+  try {
+    await updateActionMapping(store.selectedElementId, targetTrigger, config);
+  } catch (e) { console.error(e); }
+};
+
+// Verschiebt eine Aktion auf einen anderen Auslöser
+const moveActionInList = async (oldTrigger: TriggerType, newTrigger: TriggerType) => {
+  if (oldTrigger === newTrigger || !store.selectedElementId) return;
+
+  const actionData = store.activeProfile?.keys[store.selectedElementId]?.actions?.[oldTrigger];
+  if (!actionData) return;
+
+  // Alte löschen
+  store.clearElementAction(store.selectedElementId, oldTrigger);
+  try { await removeActionMapping(store.selectedElementId, oldTrigger); } catch (e) { console.error(e); }
+
+  // Neue setzen
+  store.updateElementAction(store.selectedElementId, newTrigger, actionData);
+  try { await updateActionMapping(store.selectedElementId, newTrigger, actionData.config); } catch (e) { console.error(e); }
+};
+
+// Aktualisiert den Slider-Wert einer spezifischen Aktion
+const updateActionStep = async (trigger: TriggerType, newStep: number) => {
+  if (!store.selectedElementId) return;
+  const currentAction = store.activeProfile?.keys[store.selectedElementId]?.actions?.[trigger];
+
+  if (currentAction) {
+    const updatedConfig = { ...currentAction.config, step: newStep };
+    store.updateElementAction(store.selectedElementId, trigger, { ...currentAction, config: updatedConfig });
+    try { await updateActionMapping(store.selectedElementId, trigger, updatedConfig); } catch (e) { console.error(e); }
+  }
+};
+
+// Aktualisiert die F-Taste einer spezifischen Aktion
+const updateActionKey = async (trigger: TriggerType, newKey: string) => {
+  if (!store.selectedElementId) return;
+  const currentAction = store.activeProfile?.keys[store.selectedElementId]?.actions?.[trigger];
+
+  if (currentAction) {
+    const updatedConfig = { ...currentAction.config, key: newKey };
+    store.updateElementAction(store.selectedElementId, trigger, { ...currentAction, config: updatedConfig });
+    try { await updateActionMapping(store.selectedElementId, trigger, updatedConfig); } catch (e) { console.error(e); }
   }
 };
 
 const unbindSpecificAction = async (triggerToDelete: TriggerType) => {
   if (store.selectedElementId) {
     store.clearElementAction(store.selectedElementId, triggerToDelete);
-    try {
-      await removeActionMapping(store.selectedElementId, triggerToDelete);
-    } catch (e) { console.error(e); }
+    try { await removeActionMapping(store.selectedElementId, triggerToDelete); } catch (e) { console.error(e); }
   }
 };
 </script>
@@ -312,18 +282,10 @@ const unbindSpecificAction = async (triggerToDelete: TriggerType) => {
 .action-card {
   background: rgba(255,255,255,0.03) !important;
   border: 1px solid rgba(255,255,255,0.1);
-  transition: border-color 0.2s;
+  transition: all 0.2s ease;
 }
 .action-card:hover:not(.v-list-item--disabled) {
   border-color: #3b82f6;
-}
-.cursor-pointer {
-  cursor: pointer;
-}
-.hover-zinc-800:hover {
-  background-color: #27272a !important;
-}
-.transition-swing {
-  transition: all 0.2s ease-in-out;
+  background: rgba(59, 130, 246, 0.05) !important;
 }
 </style>
