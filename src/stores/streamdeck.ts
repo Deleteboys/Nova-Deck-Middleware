@@ -81,7 +81,8 @@ const isActionConfig = (value: unknown): value is ActionConfig => {
     config.type === 'PressKey' ||
     config.type === 'SpotifyVolume' ||
     config.type === 'ToggleAudio' ||
-    config.type === 'MasterVolume'
+    config.type === 'MasterVolume' ||
+    config.type === 'ToggleAppAudio'
   )
 }
 

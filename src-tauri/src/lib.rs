@@ -15,6 +15,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::sync::{mpsc, Arc};
 use std::thread;
+use sysinfo::{ProcessesToUpdate, System};
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{TrayIconBuilder, TrayIconEvent},
@@ -193,6 +194,7 @@ pub fn run() {
             get_connection_status,
             update_mapping,
             remove_mapping,
+            get_active_processes,
             sync_mappings
         ])
         .setup(move |app| {
@@ -304,6 +306,7 @@ pub enum ActionConfig {
     SpotifyVolume { step: i8 },
     ToggleAudio { device1: String, device2: String },
     MasterVolume { step: i8 },
+    ToggleAppAudio { process_name: String },
     // ... hier kommen alle deine zukünftigen Module rein
 }
 
@@ -362,6 +365,9 @@ fn create_action(config: ActionConfig) -> Box<dyn action::actions::Action> {
         }
         ActionConfig::MasterVolume { step } => {
             Box::new(modules::master_volume::MasterVolumeAction { step })
+        }
+        ActionConfig::ToggleAppAudio { process_name } => {
+            Box::new(modules::toggle_app_audio::ToggleAppAudioAction { process_name })
         }
         // ActionConfig::SpotifyVolume { volume } => {
         //     Box::new(crate::modules::spotify_action::SetSpotifyVolumeAction {
@@ -466,4 +472,27 @@ fn trigger_from_payload(element_id: &str, trigger_type: &str) -> Result<Hardware
     };
 
     Ok(HardwareTrigger::Encoder { id, event })
+}
+
+
+#[derive(serde::Serialize)]
+pub struct ProcessInfo {
+    pub pid: u32,
+    pub name: String,
+}
+
+#[tauri::command]
+fn get_active_processes() -> Vec<String> {
+    let mut sys = System::new_all();
+    sys.refresh_processes(ProcessesToUpdate::All, true);
+
+    let mut names: Vec<String> = sys.processes().values()
+        .map(|p| p.name().to_string_lossy().into_owned())
+        .collect();
+
+    // Alphabetisch sortieren und dann alle aufeinanderfolgenden Duplikate löschen!
+    names.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+    names.dedup();
+
+    names
 }

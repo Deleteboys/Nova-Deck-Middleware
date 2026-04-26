@@ -160,6 +160,31 @@
                     @update:model-value="(val) => updateActionStep(item.triggerValue, val)"
                 ></v-slider>
               </div>
+
+              <div v-if="item.isToggleApp" class="mt-3">
+                <div class="d-flex justify-space-between align-center mb-1">
+                  <div class="text-body-2 text-grey">Prozess auswählen</div>
+                  <v-btn
+                      icon="mdi-refresh"
+                      variant="text"
+                      size="x-small"
+                      color="grey"
+                      title="Liste aktualisieren"
+                      @click="fetchProcesses"
+                  ></v-btn>
+                </div>
+
+                <v-autocomplete
+                    :model-value="item.process_name"
+                    :items="activeProcesses"
+                    variant="underlined"
+                    density="compact"
+                    hide-details
+                    placeholder="Suche nach .exe..."
+                    class="mb-3 text-white"
+                    @update:model-value="(val) => updateActionProcess(item.triggerValue, val)"
+                ></v-autocomplete>
+              </div>
             </div>
           </v-card>
         </div>
@@ -175,14 +200,33 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import {computed, onMounted, ref, watch} from 'vue';
 import { useStreamDeckStore } from '@/stores/streamdeck';
-import { updateActionMapping, removeActionMapping, type TriggerType } from '@/services/streamdeckCommands';
+import {
+  updateActionMapping,
+  removeActionMapping,
+  type TriggerType,
+  getActiveProcesses
+} from '@/services/streamdeckCommands';
 
 const store = useStreamDeckStore();
 const buttonLabel = ref('');
 
 const editingStepTrigger = ref<TriggerType | null>(null);
+
+const activeProcesses = ref<string[]>([]);
+
+const fetchProcesses = async () => {
+  try {
+    activeProcesses.value = await getActiveProcesses();
+  } catch (error) {
+    console.error("Prozesse konnten nicht geladen werden:", error);
+  }
+};
+
+onMounted(() => {
+  fetchProcesses();
+});
 
 const startEditingStep = (trigger: TriggerType) => {
   editingStepTrigger.value = trigger;
@@ -198,7 +242,8 @@ const actionsLibrary = [
   { title: 'Taste drücken', icon: 'mdi-keyboard', config: { type: 'PressKey', key: 'F13' } },
   { title: 'Spotify Volume', icon: 'mdi-spotify', config: { type: 'SpotifyVolume', step: 5 } },
   { title: 'Master Volume', icon: 'mdi-volume-high', config: { type: 'MasterVolume', step: 5 } },
-  { title: 'Audio Toggle', icon: 'mdi-swap-horizontal', config: { type: 'ToggleAudio', device1: 'HyperX', device2: 'Speakers' } }
+  { title: 'Audio Toggle', icon: 'mdi-swap-horizontal', config: { type: 'ToggleAudio', device1: 'HyperX', device2: 'Speakers' } },
+  { title: 'App Audio (Toggle)', icon: 'mdi-volume-off', config: { type: 'ToggleAppAudio', process_name: '' } }
 ];
 
 const triggerOptions = computed(() => {
@@ -230,7 +275,9 @@ const boundActionsList = computed(() => {
     hasStep: setup?.config && 'step' in setup.config,
     step: setup?.config?.step,
     hasKey: setup?.config && 'key' in setup.config,
-    key: setup?.config?.key
+    key: setup?.config?.key,
+    isToggleApp: setup?.config && setup.config.type === 'ToggleAppAudio',
+    process_name: setup?.config?.process_name
   }));
 });
 
@@ -311,6 +358,16 @@ const unbindSpecificAction = async (triggerToDelete: TriggerType) => {
   if (store.selectedElementId) {
     store.clearElementAction(store.selectedElementId, triggerToDelete);
     try { await removeActionMapping(store.selectedElementId, triggerToDelete); } catch (e) { console.error(e); }
+  }
+};
+
+const updateActionProcess = async (trigger: TriggerType, name: string) => {
+  if (!store.selectedElementId) return;
+  const currentAction = store.activeProfile?.keys[store.selectedElementId]?.actions?.[trigger];
+  if (currentAction) {
+    const updatedConfig = { ...currentAction.config, process_name: name };
+    store.updateElementAction(store.selectedElementId, trigger, { ...currentAction, config: updatedConfig });
+    try { await updateActionMapping(store.selectedElementId, trigger, updatedConfig); } catch (e) { console.error(e); }
   }
 };
 </script>
