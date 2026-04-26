@@ -1,11 +1,17 @@
 <template>
-  <div class="oled-wrapper">
-    <canvas
-        ref="oledCanvas"
-        width="128"
-        height="64"
-        class="oled-canvas"
-    ></canvas>
+  <div
+      class="oled-container"
+      :class="{ 'is-selected': store.selectedElementId === 'oled-display' }"
+      @click="store.selectElement('oled-display')"
+  >
+    <div class="oled-wrapper">
+      <canvas
+          ref="oledCanvas"
+          width="128"
+          height="64"
+          class="oled-canvas"
+      ></canvas>
+    </div>
   </div>
 </template>
 
@@ -18,6 +24,7 @@ const oledCanvas = ref<HTMLCanvasElement | null>(null);
 
 // Fallback-Daten
 const VOLUMES = [50, 65, 80, 35];
+const defaultIcons = ['MASTER', 'SPOTIFY', 'DISCORD', 'BROWSER'];
 
 const ICONS: Record<string, string[]> = {
   MASTER: [
@@ -46,7 +53,7 @@ const ICONS: Record<string, string[]> = {
   ]
 };
 
-// Exakter Port des 5x7 Fonts aus dem Rust Code
+// Exakter Port des 5x7 Fonts
 const FONT_5X7: Record<string, number[]> = {
   ' ': [0x00, 0x00, 0x00, 0x00, 0x00],
   '%': [0x23, 0x13, 0x08, 0x64, 0x62],
@@ -62,7 +69,6 @@ const FONT_5X7: Record<string, number[]> = {
   '7': [0x01, 0x71, 0x09, 0x05, 0x03],
   '8': [0x36, 0x49, 0x49, 0x49, 0x36],
   '9': [0x06, 0x49, 0x49, 0x29, 0x1e],
-
   'A': [0x7e, 0x11, 0x11, 0x11, 0x7e],
   'B': [0x7f, 0x49, 0x49, 0x49, 0x36],
   'C': [0x3e, 0x41, 0x41, 0x41, 0x22],
@@ -92,7 +98,6 @@ const FONT_5X7: Record<string, number[]> = {
 };
 const FONT_DEFAULT = [0x00, 0x00, 0x5f, 0x00, 0x00];
 
-// Framebuffer Render-Logik
 const renderDisplay = () => {
   if (!oledCanvas.value) return;
   const ctx = oledCanvas.value.getContext('2d');
@@ -100,27 +105,22 @@ const renderDisplay = () => {
 
   const DISPLAY_WIDTH = 128;
   const DISPLAY_HEIGHT = 64;
-
-  // Wir nutzen einen Uint8ClampedArray als echten Framebuffer (RGBA)
   const buffer = new Uint8ClampedArray(DISPLAY_WIDTH * DISPLAY_HEIGHT * 4);
 
-  // Hilfsfunktion um ein Pixel in den Buffer zu schreiben
   const putPixel = (x: number, y: number, on: boolean) => {
     if (x < 0 || x >= DISPLAY_WIDTH || y < 0 || y >= DISPLAY_HEIGHT) return;
     const index = (y * DISPLAY_WIDTH + x) * 4;
     const color = on ? 255 : 0;
-    buffer[index] = color;     // R
-    buffer[index + 1] = color; // G
-    buffer[index + 2] = color; // B
-    buffer[index + 3] = 255;   // Alpha (immer voll deckend, da OLED)
+    buffer[index] = color;
+    buffer[index + 1] = color;
+    buffer[index + 2] = color;
+    buffer[index + 3] = 255;
   };
 
-  // Hintergrund komplett leeren (schwarz)
   for (let i = 0; i < buffer.length; i += 4) {
     buffer[i] = 0; buffer[i+1] = 0; buffer[i+2] = 0; buffer[i+3] = 255;
   }
 
-  // Text Zeichnen (Analog zum Rust Code)
   const drawText = (col: number, page: number, text: string, on: boolean) => {
     let cursor = col;
     for (let i = 0; i < text.length; i++) {
@@ -148,7 +148,6 @@ const renderDisplay = () => {
     drawText(startX, page, text, on);
   };
 
-  // Linien zeichnen
   const drawDashedHLine = (y: number, xStart: number, xEnd: number, dashLen: number, on: boolean) => {
     let x = xStart;
     while (x <= xEnd) {
@@ -169,7 +168,6 @@ const renderDisplay = () => {
     }
   };
 
-  // Icon zeichnen
   const drawIcon = (x: number, y: number, iconData: string[], on: boolean) => {
     for (let row = 0; row < iconData.length; row++) {
       const line = iconData[row];
@@ -181,9 +179,6 @@ const renderDisplay = () => {
     }
   };
 
-
-  /* --- START DER EIGENTLICHEN RENDER-LOGIK --- */
-
   // 1. Profilname
   const profileName = store.activeProfile?.name || 'MAIN';
   drawTextCenteredInRange(0, profileName.toUpperCase(), 0, DISPLAY_WIDTH - 1, true);
@@ -192,36 +187,37 @@ const renderDisplay = () => {
   drawDashedHLine(10, 0, DISPLAY_WIDTH - 1, 2, true);
 
   const segmentWidth = Math.floor(DISPLAY_WIDTH / 4);
-  const iconKeys = ['MASTER', 'SPOTIFY', 'DISCORD', 'BROWSER'];
+
+  // Hier holen wir uns die Config für alle Slots aus 'oled-display'
+  const displayConfig = store.activeProfile?.keys['oled-display']?.slots || [];
 
   for (let i = 0; i < 4; i++) {
     const xStart = i * segmentWidth;
     const iconX = xStart + 9;
     const iconY = 20;
 
-    // 3. Vertikale Trennlinien
-    if (i > 0) {
-      drawDashedVLine(xStart, 15, DISPLAY_HEIGHT - 1, 1, 2, true);
-    }
+    if (i > 0) drawDashedVLine(xStart, 15, DISPLAY_HEIGHT - 1, 1, 2, true);
+
+    const slotData = displayConfig[i] || {};
 
     // 4. Icon zeichnen
-    const iconKey = iconKeys[i];
-    drawIcon(iconX, iconY, ICONS[iconKey], true);
+    const iconKey = slotData.icon || defaultIcons[i];
+    const iconData = ICONS[iconKey] || ICONS['MASTER'];
+    drawIcon(iconX, iconY, iconData, true);
 
-    // 5. Mute-X (falls gemutet)
-    const isMuted = store.activeProfile?.keys[`enc-${i}`]?.muted ?? false;
+    // 5. Mute-X (falls vom Backend oder Store gemutet)
+    const isMuted = slotData.muted ?? false;
     if (isMuted) {
       for (let d = 0; d < 14; d++) {
         putPixel(iconX + d, iconY + d, true);
         if (d < 13) putPixel(iconX + d + 1, iconY + d, true);
-
         putPixel(iconX + 13 - d, iconY + d, true);
         if (d > 0) putPixel(iconX + 13 - d - 1, iconY + d, true);
       }
     }
 
     // 6. Lautstärketext (Page 6)
-    const volume = store.activeProfile?.keys[`enc-${i}`]?.value ?? VOLUMES[i];
+    const volume = slotData.value ?? VOLUMES[i];
     let volStr = "---";
     if (volume !== 255) {
       volStr = `${volume}%`;
@@ -230,33 +226,42 @@ const renderDisplay = () => {
     drawTextCenteredInRange(6, volStr, xStart, xStart + segmentWidth - 1, true);
   }
 
-  // Framebuffer auf das Canvas anwenden
   const imageData = new ImageData(buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT);
   ctx.putImageData(imageData, 0, 0);
 };
 
-// Canvas initial rendern und auf Store-Änderungen reagieren
-onMounted(() => {
-  renderDisplay();
-});
-
-watchEffect(() => {
-  // Sobald sich Daten im Store ändern, wird das Canvas neu gezeichnet
-  renderDisplay();
-});
+onMounted(() => renderDisplay());
+watchEffect(() => renderDisplay());
 </script>
 
 <style scoped>
+.oled-container {
+  display: inline-block;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+}
+
+.oled-container:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.oled-container.is-selected {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+}
+
 .oled-wrapper {
   display: inline-block;
 }
 
 .oled-canvas {
-  width: 256px;   /* Exakt 128px * 2 */
-  height: 128px;  /* Exakt 64px * 2 */
+  width: 256px;
+  height: 128px;
   background-color: #000;
   border: 4px solid #333;
-  /* WICHTIG: Das hier hält die Pixel beim Skalieren knackscharf */
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   display: block;

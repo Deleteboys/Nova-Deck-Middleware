@@ -6,9 +6,10 @@
 
         <div class="mb-5">
           <div class="text-caption text-primary uppercase tracking-widest font-weight-bold mb-1">
-            {{ store.selectedElementId }}
+            {{ store.selectedElementId === 'oled-display' ? 'OLED Panel' : store.selectedElementId }}
           </div>
           <v-text-field
+              v-if="!isOledDisplay"
               v-model="buttonLabel"
               placeholder="Button Name eingeben..."
               variant="plain"
@@ -21,171 +22,236 @@
 
         <v-divider class="mb-5 border-opacity-25" color="white"></v-divider>
 
-        <div class="d-flex justify-space-between align-center mb-4">
-          <div class="text-body-2 text-grey font-weight-medium">Zugeordnete Aktionen</div>
+        <div v-if="isOledDisplay" class="mb-6">
+          <div class="text-body-2 text-grey font-weight-medium mb-4">Display Slots konfigurieren</div>
 
-          <v-menu location="bottom end">
-            <template v-slot:activator="{ props }">
-              <v-btn
-                  v-bind="props"
-                  size="small"
-                  color="primary"
-                  variant="tonal"
-                  prepend-icon="mdi-plus"
-                  class="text-none rounded-lg font-weight-medium px-3"
-              >
-                Aktion hinzufügen
-              </v-btn>
-            </template>
-            <v-list bg-color="#18181b" class="border border-zinc-700 rounded-lg mt-1" density="compact">
-              <v-list-item
-                  v-for="a in actionsLibrary"
-                  :key="a.title"
-                  :prepend-icon="a.icon"
-                  :title="a.title"
-                  class="action-menu-item text-body-2"
-                  @click="assignAction(a)"
-              ></v-list-item>
-            </v-list>
-          </v-menu>
-        </div>
-
-        <div
-            v-if="boundActionsList.length === 0"
-            class="pa-6 border-dashed rounded-lg border-zinc-700 text-center text-grey mb-6 bg-zinc-800 bg-opacity-30"
-        >
-          <div class="text-body-2">Noch keine Aktionen zugewiesen</div>
-        </div>
-
-        <div class="d-flex flex-column gap-3 mb-8">
-          <v-card
-              v-for="item in boundActionsList"
-              :key="item.triggerValue"
-              color="#18181b"
-              variant="flat"
-              class="border border-zinc-800 rounded-lg overflow-hidden"
-          >
-            <div class="d-flex align-center justify-space-between px-3 py-2 bg-zinc-800 border-b border-zinc-700">
-              <div class="d-flex align-center flex-grow-1 overflow-hidden mr-3">
-                <v-icon :icon="item.icon" color="primary" size="small" class="mr-2 flex-shrink-0"></v-icon>
-                <span class="text-body-2 font-weight-bold text-white text-truncate text-help">
-                  {{ item.actionName }}
-                  <v-tooltip activator="parent" location="top" open-delay="250">
-                    {{ item.actionName }}
-                  </v-tooltip>
-                </span>
+          <div class="d-flex flex-column gap-3">
+            <v-card
+                v-for="(slot, index) in oledSlots"
+                :key="'slot-' + index"
+                color="#18181b"
+                variant="flat"
+                class="border border-zinc-800 rounded-lg overflow-hidden"
+            >
+              <div class="d-flex align-center px-3 py-2 bg-zinc-800 border-b border-zinc-700">
+                <v-icon icon="mdi-monitor-dashboard" color="primary" size="small" class="mr-2"></v-icon>
+                <span class="text-body-2 font-weight-bold text-white">Slot {{ index + 1 }}</span>
               </div>
 
-              <div class="d-flex align-center flex-shrink-0">
-                <v-select
-                    :model-value="item.triggerValue"
-                    :items="triggerOptions"
-                    variant="plain"
-                    density="compact"
-                    hide-details
-                    class="compact-trigger-select mr-1"
-                    @update:model-value="(newVal: TriggerType) => moveActionInList(item.triggerValue, newVal)"
-                ></v-select>
+              <div class="px-4 py-3">
 
-                <v-btn
-                    size="small"
-                    color="grey-darken-1"
-                    variant="text"
-                    icon="mdi-close"
-                    class="hover-error"
-                    style="width: 28px; height: 28px;"
-                    @click="unbindSpecificAction(item.triggerValue)"
-                ></v-btn>
-              </div>
-            </div>
-
-            <div class="px-3 py-3" v-if="item.hasSettings">
-
-              <div v-if="item.hasKey" class="d-flex align-center justify-space-between">
-                <div class="text-body-2 text-grey">Tastenkombination</div>
-                <v-select
-                    :model-value="item.key"
-                    :items="fKeys"
-                    variant="underlined"
-                    density="compact"
-                    hide-details
-                    class="compact-key-select"
-                    @update:model-value="(val) => updateActionKey(item.triggerValue, val)"
-                ></v-select>
-              </div>
-
-              <div v-if="item.hasStep">
-                <div class="d-flex justify-space-between align-center mb-1">
-                  <div class="text-body-2 text-grey">Intervall</div>
-                  <span
-                      v-if="editingStepTrigger !== item.triggerValue"
-                      class="text-body-2 text-white font-weight-bold edit-trigger"
-                      title="Klicken zur direkten Eingabe"
-                      @click="startEditingStep(item.triggerValue)"
-                  >
-                    {{ item.step > 0 ? '+' : '' }}{{ item.step }}%
-                  </span>
-                  <div v-else class="inline-input-wrapper">
-                    <v-text-field
-                        :model-value="item.step"
-                        type="number"
-                        density="compact"
+                <div class="d-flex align-center justify-space-between mb-4">
+                  <div class="text-body-2 text-grey">Anzeigesymbol</div>
+                  <div style="width: 130px;">
+                    <v-select
+                        v-model="slot.icon"
+                        :items="['MASTER', 'SPOTIFY', 'DISCORD', 'BROWSER']"
                         variant="underlined"
+                        density="compact"
                         hide-details
-                        autofocus
-                        color="primary"
-                        @update:model-value="(val) => updateActionStep(item.triggerValue, Number(val))"
-                        @blur="stopEditingStep"
-                        @keyup.enter="stopEditingStep"
-                    ></v-text-field>
+                        class="slot-select text-white"
+                        @update:model-value="updateOledConfig"
+                    ></v-select>
                   </div>
                 </div>
-                <v-slider
-                    :model-value="item.step"
-                    :min="-50"
-                    :max="50"
-                    :step="1"
-                    hide-details
-                    color="primary"
-                    track-color="zinc-700"
-                    @update:model-value="(val) => updateActionStep(item.triggerValue, val)"
-                ></v-slider>
-              </div>
 
-              <div v-if="item.isToggleApp" class="mt-1">
-                <div class="d-flex justify-space-between align-center mb-1">
-                  <div class="text-body-2 text-grey">Prozess auswählen</div>
+                <div>
+                  <div class="d-flex justify-space-between align-center mb-1">
+                    <div class="text-body-2 text-grey">Gekoppelter Prozess</div>
+                    <v-btn
+                        icon="mdi-refresh"
+                        variant="text"
+                        size="x-small"
+                        color="grey"
+                        title="Liste aktualisieren"
+                        @click="fetchProcesses"
+                    ></v-btn>
+                  </div>
+                  <v-autocomplete
+                      v-model="slot.process"
+                      :items="activeProcesses"
+                      variant="underlined"
+                      density="compact"
+                      hide-details
+                      placeholder="Kein Prozess (Standard)"
+                      class="text-white"
+                      @update:model-value="updateOledConfig"
+                  ></v-autocomplete>
+                </div>
+
+              </div>
+            </v-card>
+          </div>
+        </div>
+
+        <div v-else>
+          <div class="d-flex justify-space-between align-center mb-4">
+            <div class="text-body-2 text-grey font-weight-medium">Zugeordnete Aktionen</div>
+
+            <v-menu location="bottom end">
+              <template v-slot:activator="{ props }">
+                <v-btn
+                    v-bind="props"
+                    size="small"
+                    color="primary"
+                    variant="tonal"
+                    prepend-icon="mdi-plus"
+                    class="text-none rounded-lg font-weight-medium px-3"
+                >
+                  Aktion hinzufügen
+                </v-btn>
+              </template>
+              <v-list bg-color="#18181b" class="border border-zinc-700 rounded-lg mt-1" density="compact">
+                <v-list-item
+                    v-for="a in actionsLibrary"
+                    :key="a.title"
+                    :prepend-icon="a.icon"
+                    :title="a.title"
+                    class="action-menu-item text-body-2"
+                    @click="assignAction(a)"
+                ></v-list-item>
+              </v-list>
+            </v-menu>
+          </div>
+
+          <div
+              v-if="boundActionsList.length === 0"
+              class="pa-6 border-dashed rounded-lg border-zinc-700 text-center text-grey mb-6 bg-zinc-800 bg-opacity-30"
+          >
+            <div class="text-body-2">Noch keine Aktionen zugewiesen</div>
+          </div>
+
+          <div class="d-flex flex-column gap-3 mb-8">
+            <v-card
+                v-for="item in boundActionsList"
+                :key="item.triggerValue"
+                color="#18181b"
+                variant="flat"
+                class="border border-zinc-800 rounded-lg overflow-hidden"
+            >
+              <div class="d-flex align-center justify-space-between px-3 py-2 bg-zinc-800 border-b border-zinc-700">
+                <div class="d-flex align-center flex-grow-1 overflow-hidden mr-3">
+                  <v-icon :icon="item.icon" color="primary" size="small" class="mr-2 flex-shrink-0"></v-icon>
+                  <span class="text-body-2 font-weight-bold text-white text-truncate text-help">
+                    {{ item.actionName }}
+                    <v-tooltip activator="parent" location="top" open-delay="250">
+                      {{ item.actionName }}
+                    </v-tooltip>
+                  </span>
+                </div>
+
+                <div class="d-flex align-center flex-shrink-0">
+                  <v-select
+                      :model-value="item.triggerValue"
+                      :items="triggerOptions"
+                      variant="plain"
+                      density="compact"
+                      hide-details
+                      class="compact-trigger-select mr-1"
+                      @update:model-value="(newVal: TriggerType) => moveActionInList(item.triggerValue, newVal)"
+                  ></v-select>
+
                   <v-btn
-                      icon="mdi-refresh"
+                      size="small"
+                      color="grey-darken-1"
                       variant="text"
-                      size="x-small"
-                      color="grey"
-                      title="Liste aktualisieren"
-                      @click="fetchProcesses"
+                      icon="mdi-close"
+                      class="hover-error"
+                      style="width: 28px; height: 28px;"
+                      @click="unbindSpecificAction(item.triggerValue)"
                   ></v-btn>
                 </div>
-                <v-autocomplete
-                    :model-value="item.process_name"
-                    :items="activeProcesses"
-                    variant="underlined"
-                    density="compact"
-                    hide-details
-                    placeholder="Suche nach .exe..."
-                    class="mb-2 text-white"
-                    @update:model-value="(val) => updateActionProcess(item.triggerValue, val)"
-                ></v-autocomplete>
               </div>
-            </div>
 
-            <div class="px-3 py-2 bg-zinc-800 bg-opacity-30 d-flex align-center justify-center" v-else>
-              <v-icon icon="mdi-information-outline" size="x-small" color="grey" class="mr-2"></v-icon>
-              <div class="text-caption text-grey font-italic" style="opacity: 0.6;">
-                Keine weiteren Einstellungen erforderlich
+              <div class="px-4 py-3" v-if="item.hasSettings">
+
+                <div v-if="item.hasKey" class="d-flex align-center justify-space-between">
+                  <div class="text-body-2 text-grey">Tastenkombination</div>
+                  <v-select
+                      :model-value="item.key"
+                      :items="fKeys"
+                      variant="underlined"
+                      density="compact"
+                      hide-details
+                      class="compact-key-select"
+                      @update:model-value="(val) => updateActionKey(item.triggerValue, val)"
+                  ></v-select>
+                </div>
+
+                <div v-if="item.hasStep">
+                  <div class="d-flex justify-space-between align-center mb-1">
+                    <div class="text-body-2 text-grey">Intervall</div>
+                    <span
+                        v-if="editingStepTrigger !== item.triggerValue"
+                        class="text-body-2 text-white font-weight-bold edit-trigger"
+                        title="Klicken zur direkten Eingabe"
+                        @click="startEditingStep(item.triggerValue)"
+                    >
+                      {{ item.step > 0 ? '+' : '' }}{{ item.step }}%
+                    </span>
+                    <div v-else class="inline-input-wrapper">
+                      <v-text-field
+                          :model-value="item.step"
+                          type="number"
+                          density="compact"
+                          variant="underlined"
+                          hide-details
+                          autofocus
+                          color="primary"
+                          @update:model-value="(val) => updateActionStep(item.triggerValue, Number(val))"
+                          @blur="stopEditingStep"
+                          @keyup.enter="stopEditingStep"
+                      ></v-text-field>
+                    </div>
+                  </div>
+                  <v-slider
+                      :model-value="item.step"
+                      :min="-50"
+                      :max="50"
+                      :step="1"
+                      hide-details
+                      color="primary"
+                      track-color="zinc-700"
+                      @update:model-value="(val) => updateActionStep(item.triggerValue, val)"
+                  ></v-slider>
+                </div>
+
+                <div v-if="item.isToggleApp" class="mt-1">
+                  <div class="d-flex justify-space-between align-center mb-1">
+                    <div class="text-body-2 text-grey">Prozess auswählen</div>
+                    <v-btn
+                        icon="mdi-refresh"
+                        variant="text"
+                        size="x-small"
+                        color="grey"
+                        title="Liste aktualisieren"
+                        @click="fetchProcesses"
+                    ></v-btn>
+                  </div>
+                  <v-autocomplete
+                      :model-value="item.process_name"
+                      :items="activeProcesses"
+                      variant="underlined"
+                      density="compact"
+                      hide-details
+                      placeholder="Suche nach .exe..."
+                      class="text-white"
+                      @update:model-value="(val) => updateActionProcess(item.triggerValue, val)"
+                  ></v-autocomplete>
+                </div>
               </div>
-            </div>
 
-          </v-card>
+              <div class="px-3 py-2 bg-zinc-800 bg-opacity-30 d-flex align-center justify-center" v-else>
+                <v-icon icon="mdi-information-outline" size="x-small" color="grey" class="mr-2"></v-icon>
+                <div class="text-caption text-grey font-italic" style="opacity: 0.6;">
+                  Keine weiteren Einstellungen erforderlich
+                </div>
+              </div>
+
+            </v-card>
+          </div>
         </div>
+
       </section>
 
       <div v-else class="pa-10 text-center border-dashed rounded-lg border-zinc-700 text-grey mt-4">
@@ -198,7 +264,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onMounted, ref, watch} from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useStreamDeckStore } from '@/stores/streamdeck';
 import {
   updateActionMapping,
@@ -210,10 +276,23 @@ import {
 const store = useStreamDeckStore();
 const buttonLabel = ref('');
 
-const editingStepTrigger = ref<TriggerType | null>(null);
+// --- OLED PANEL LOGIK ---
+const isOledDisplay = computed(() => store.selectedElementId === 'oled-display');
+
+const oledSlots = ref([
+  { icon: 'MASTER', process: '' },
+  { icon: 'SPOTIFY', process: '' },
+  { icon: 'DISCORD', process: '' },
+  { icon: 'BROWSER', process: '' }
+]);
+
+const updateOledConfig = () => {
+  if (!store.activeProfile) return;
+  if (!store.activeProfile.keys['oled-display']) store.activeProfile.keys['oled-display'] = {};
+  store.activeProfile.keys['oled-display'].slots = JSON.parse(JSON.stringify(oledSlots.value));
+};
 
 const activeProcesses = ref<string[]>([]);
-
 const fetchProcesses = async () => {
   try {
     activeProcesses.value = await getActiveProcesses();
@@ -222,20 +301,36 @@ const fetchProcesses = async () => {
   }
 };
 
-onMounted(() => {
-  fetchProcesses();
-});
+onMounted(() => fetchProcesses());
 
-const startEditingStep = (trigger: TriggerType) => {
-  editingStepTrigger.value = trigger;
+watch(() => store.selectedElementId, (newId) => {
+  if (newId) {
+    buttonLabel.value = store.activeProfile?.keys[newId]?.label || '';
+    if (newId === 'oled-display') {
+      const savedSlots = store.activeProfile?.keys['oled-display']?.slots;
+      if (savedSlots && savedSlots.length === 4) {
+        oledSlots.value = JSON.parse(JSON.stringify(savedSlots));
+      } else {
+        oledSlots.value = [
+          { icon: 'MASTER', process: '' },
+          { icon: 'SPOTIFY', process: '' },
+          { icon: 'DISCORD', process: '' },
+          { icon: 'BROWSER', process: '' }
+        ];
+      }
+    }
+  }
+}, { immediate: true });
+
+const saveChanges = () => {
+  if (store.selectedElementId && !isOledDisplay.value) {
+    store.updateElementLabel(store.selectedElementId, buttonLabel.value);
+  }
 };
 
-const stopEditingStep = () => {
-  editingStepTrigger.value = null;
-};
-
+// --- ACTION LOGIK ---
+const editingStepTrigger = ref<TriggerType | null>(null);
 const fKeys = Array.from({ length: 12 }, (_, i) => `F${i + 13}`);
-
 const actionsLibrary = [
   { title: 'Taste drücken', icon: 'mdi-keyboard', config: { type: 'PressKey', key: 'F13' } },
   { title: 'Spotify Volume', icon: 'mdi-spotify', config: { type: 'SpotifyVolume', step: 5 } },
@@ -244,6 +339,9 @@ const actionsLibrary = [
   { title: 'App Audio (Toggle)', icon: 'mdi-volume-off', config: { type: 'ToggleAppAudio', process_name: '' } },
   { title: 'Global Mute (Toggle)', icon: 'mdi-volume-mute', config: { type: 'ToggleMasterMute' } }
 ];
+
+const startEditingStep = (trigger: TriggerType) => { editingStepTrigger.value = trigger; };
+const stopEditingStep = () => { editingStepTrigger.value = null; };
 
 const triggerOptions = computed(() => {
   if (store.selectedElementId?.startsWith('enc-')) {
@@ -268,13 +366,7 @@ const boundActionsList = computed(() => {
   if (!actionsMap) return [];
 
   return Object.entries(actionsMap).map(([triggerValue, setup]) => {
-    // Prüfen, ob diese Aktion irgendwelche UI-Einstellungen braucht
-    const hasSettings = setup?.config && (
-        'step' in setup.config ||
-        'key' in setup.config ||
-        setup.config.type === 'ToggleAppAudio'
-    );
-
+    const hasSettings = setup?.config && ('step' in setup.config || 'key' in setup.config || setup.config.type === 'ToggleAppAudio');
     return {
       triggerValue: triggerValue as TriggerType,
       actionName: setup?.action || 'Unbekannt',
@@ -285,25 +377,13 @@ const boundActionsList = computed(() => {
       key: setup?.config?.key,
       isToggleApp: setup?.config && setup.config.type === 'ToggleAppAudio',
       process_name: setup?.config?.process_name,
-      hasSettings // <-- NEU
+      hasSettings
     };
   });
 });
-watch(() => store.selectedElementId, (newId) => {
-  if (newId) {
-    buttonLabel.value = store.activeProfile?.keys[newId]?.label || '';
-  }
-}, { immediate: true });
-
-const saveChanges = () => {
-  if (store.selectedElementId) {
-    store.updateElementLabel(store.selectedElementId, buttonLabel.value);
-  }
-};
 
 const assignAction = async (action: any) => {
   if (!store.selectedElementId) return;
-
   const usedTriggers = Object.keys(store.activeProfile?.keys[store.selectedElementId]?.actions || {});
   let targetTrigger: TriggerType = triggerOptions.value[0].value as TriggerType;
 
@@ -317,15 +397,8 @@ const assignAction = async (action: any) => {
   const config = { ...action.config };
   if ('step' in config) config.step = targetTrigger.includes('Left') ? -5 : 5;
 
-  store.updateElementAction(store.selectedElementId, targetTrigger, {
-    action: action.title,
-    icon: action.icon,
-    config: config
-  });
-
-  try {
-    await updateActionMapping(store.selectedElementId, targetTrigger, config);
-  } catch (e) { console.error(e); }
+  store.updateElementAction(store.selectedElementId, targetTrigger, { action: action.title, icon: action.icon, config: config });
+  try { await updateActionMapping(store.selectedElementId, targetTrigger, config); } catch (e) { console.error(e); }
 };
 
 const moveActionInList = async (oldTrigger: TriggerType, newTrigger: TriggerType) => {
@@ -335,7 +408,6 @@ const moveActionInList = async (oldTrigger: TriggerType, newTrigger: TriggerType
 
   store.clearElementAction(store.selectedElementId, oldTrigger);
   store.updateElementAction(store.selectedElementId, newTrigger, actionData);
-
   try {
     await removeActionMapping(store.selectedElementId, oldTrigger);
     await updateActionMapping(store.selectedElementId, newTrigger, actionData.config);
@@ -389,13 +461,8 @@ const updateActionProcess = async (trigger: TriggerType, name: string) => {
 .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
 
-/* --- CLEAN UI STYLES --- */
+.text-help { cursor: help; }
 
-.text-help {
-  cursor: help;
-}
-
-/* Verkleinerter, nahtloser Header-Input */
 .seamless-title-input :deep(input) {
   font-size: 1.15rem !important;
   font-weight: 700 !important;
@@ -404,39 +471,41 @@ const updateActionProcess = async (trigger: TriggerType, name: string) => {
   line-height: 1.3 !important;
   transition: all 0.2s ease;
 }
-.seamless-title-input :deep(input:focus) {
-  opacity: 1;
-}
+.seamless-title-input :deep(input:focus) { opacity: 1; }
 
-/* Angepasstes Trigger Dropdown */
-.compact-trigger-select {
-  width: 120px;
-}
+.compact-trigger-select { width: 120px; }
 .compact-trigger-select :deep(.v-field__input) {
   font-size: 0.8rem !important;
   padding-top: 0 !important;
   padding-bottom: 0 !important;
   min-height: 28px !important;
-  color: #a1a1aa !important; /* zinc-400 */
+  color: #a1a1aa !important;
 }
-.compact-trigger-select :deep(.v-field__append-inner) {
-  padding-top: 0 !important;
-  align-items: center;
-}
+.compact-trigger-select :deep(.v-field__append-inner) { padding-top: 0 !important; align-items: center; }
 
-/* Kompakte Key-Auswahl */
-.compact-key-select {
-  max-width: 80px;
-}
+/* Styles für die Action Keys */
+.compact-key-select { max-width: 80px; }
 .compact-key-select :deep(.v-field__input) {
   font-size: 0.875rem !important;
   text-align: right;
-  color: #6366f1 !important; /* primary */
+  color: #6366f1 !important;
   padding-top: 0 !important;
   padding-bottom: 0 !important;
 }
 
-/* Hover-Zustände */
+/* NEU: Spezifische Styles für die OLED Slots (rechtsbündig, farblich neutral) */
+.slot-select :deep(.v-field__input) {
+  font-size: 0.875rem !important;
+  text-align: right;
+  color: #ffffff !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+.slot-select :deep(.v-field__append-inner) {
+  padding-top: 0 !important;
+  align-items: center;
+}
+
 .action-menu-item:hover {
   background: rgba(99, 102, 241, 0.1) !important;
   color: #6366f1 !important;
@@ -448,7 +517,6 @@ const updateActionProcess = async (trigger: TriggerType, name: string) => {
   border-radius: 50%;
 }
 
-/* --- INLINE EDITING STYLES --- */
 .edit-trigger {
   cursor: pointer;
   padding: 2px 6px;
@@ -461,10 +529,7 @@ const updateActionProcess = async (trigger: TriggerType, name: string) => {
   color: #6366f1 !important;
 }
 
-.inline-input-wrapper {
-  width: 55px;
-  margin-top: -6px;
-}
+.inline-input-wrapper { width: 55px; margin-top: -6px; }
 .inline-input-wrapper :deep(input) {
   text-align: right;
   font-size: 0.875rem !important;

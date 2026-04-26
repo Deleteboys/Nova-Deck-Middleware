@@ -1,4 +1,12 @@
 use serde::{Deserialize, Serialize};
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+pub enum IconType {
+    Master,
+    Spotify,
+    Discord,
+    Browser,
+    None,
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub enum LedEffect {
@@ -20,7 +28,7 @@ pub enum LedEffect {
         speed: u8,
         saturation: u8,
         #[serde(default)]
-        reverse: bool, // Hinzugefügt
+        reverse: bool,
     },
     Breathing {
         r: u8,
@@ -37,7 +45,7 @@ pub enum LedEffect {
         speed: u8,
         size: u8,
         #[serde(default)]
-        reverse: bool, // Hinzugefügt
+        reverse: bool,
     },
     Comet {
         r: u8,
@@ -47,7 +55,7 @@ pub enum LedEffect {
         speed: u8,
         tail: u8,
         #[serde(default)]
-        reverse: bool, // Hinzugefügt
+        reverse: bool,
     },
     Sparkle {
         r: u8,
@@ -61,7 +69,7 @@ pub enum LedEffect {
         brightness: u8,
         speed: u8,
         #[serde(default)]
-        reverse: bool, // Hinzugefügt
+        reverse: bool,
     },
     ColorOrbit {
         hue: u8,
@@ -70,7 +78,7 @@ pub enum LedEffect {
         brightness: u8,
         speed: u8,
         #[serde(default)]
-        reverse: bool, // Hinzugefügt
+        reverse: bool,
     },
     Astolfo {
         brightness: u8,
@@ -78,14 +86,14 @@ pub enum LedEffect {
         saturation: u8,
         spread: u8,
         #[serde(default)]
-        reverse: bool, // Hinzugefügt
+        reverse: bool,
     },
 }
 
 impl Default for LedEffect {
     fn default() -> Self {
         LedEffect::Rainbow {
-            brightness: 160,
+            brightness: 100,
             speed: 96,
             saturation: 255,
             reverse: false,
@@ -130,13 +138,25 @@ pub enum HostToPico {
     SetEffect {
         effect: LedEffect,
     },
+    SetMuteState {
+        index: u8,
+        mute: bool,
+    },
+    SetIconSlot {
+        slot: u8,
+        icon: IconType,
+    },
+    SetVolume {
+        slot: u8,
+        volume: u8,
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum PicoToHost {
     Hello,
     EncoderTurned { id: u8, delta: i8 },
-    EncoderChanged { id: u8, pressed: bool},
+    EncoderChanged { id: u8, pressed: bool },
     ButtonChanged { id: u8, pressed: bool },
     Config { config: DeviceConfig },
     ConfigSaved,
