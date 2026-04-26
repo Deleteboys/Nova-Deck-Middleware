@@ -264,3 +264,12 @@ export async function syncActionMappings(mappings: MappingPayload[]): Promise<vo
         throw error;
     }
 }
+
+export async function setIconSlot(slot: number, icon: string): Promise<void> {
+    try {
+        await invoke("set_icon_slot", { slot, icon });
+    } catch (error) {
+        console.error(`Fehler beim Senden von Icon ${icon} für Slot ${slot} an Rust:`, error);
+        throw error;
+    }
+}

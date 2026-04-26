@@ -50,7 +50,8 @@ const ICONS: Record<string, string[]> = {
     " 111       111", " 111   1111111", " 111   1111111", " 111          ",
     " 111          ", "  111     11  ", "   111111111  ", "     11111    ",
     "              ", "              "
-  ]
+  ],
+  NONE: [""]
 };
 
 // Exakter Port des 5x7 Fonts

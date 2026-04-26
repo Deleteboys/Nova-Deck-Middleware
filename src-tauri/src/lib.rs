@@ -7,7 +7,7 @@ mod serial;
 
 use crate::action::actions::{ButtonEvent, EncoderEvent, HardwareTrigger};
 use crate::action::manager::ActionManager;
-use crate::protocol::HostToPico;
+use crate::protocol::{HostToPico, IconType};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -195,7 +195,8 @@ pub fn run() {
             update_mapping,
             remove_mapping,
             get_active_processes,
-            sync_mappings
+            sync_mappings,
+            set_icon_slot
         ])
         .setup(move |app| {
             // --- TRAY MENU SETUP ---
@@ -483,6 +484,31 @@ fn trigger_from_payload(element_id: &str, trigger_type: &str) -> Result<Hardware
 pub struct ProcessInfo {
     pub pid: u32,
     pub name: String,
+}
+
+fn parse_icon(icon_str: &str) -> IconType {
+    match icon_str.to_uppercase().as_str() {
+        "MASTER" => IconType::Master,
+        "SPOTIFY" => IconType::Spotify,
+        "DISCORD" => IconType::Discord,
+        "BROWSER" => IconType::Browser,
+        _ => IconType::None,
+    }
+}
+
+#[tauri::command]
+fn set_icon_slot(state: State<AppState>, slot: u8, icon: String) -> Result<(), String> {
+    let icon_enum = parse_icon(&icon);
+    let command = HostToPico::SetIconSlot { slot, icon: icon_enum };
+
+    let tx_guard = state.serial_tx.lock().unwrap();
+    if let Some(tx) = tx_guard.as_ref() {
+        tx.send(command).map_err(|e| e.to_string())?;
+        println!("Icon für Slot {} auf {:?} gesetzt", slot, icon_enum); // Fürs Debugging
+        Ok(())
+    } else {
+        Err("Keine Verbindung zum seriellen Thread".into())
+    }
 }
 
 #[tauri::command]
