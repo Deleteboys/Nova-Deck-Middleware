@@ -307,6 +307,7 @@ pub enum ActionConfig {
     ToggleAudio { device1: String, device2: String },
     MasterVolume { step: i8 },
     ToggleAppAudio { process_name: String },
+    ToggleMasterMute,
     // ... hier kommen alle deine zukünftigen Module rein
 }
 
@@ -368,6 +369,9 @@ fn create_action(config: ActionConfig) -> Box<dyn action::actions::Action> {
         }
         ActionConfig::ToggleAppAudio { process_name } => {
             Box::new(modules::toggle_app_audio::ToggleAppAudioAction { process_name })
+        }
+        ActionConfig::ToggleMasterMute => {
+            Box::new(modules::toggle_master_mute::ToggleMasterMuteAction {})
         }
         // ActionConfig::SpotifyVolume { volume } => {
         //     Box::new(crate::modules::spotify_action::SetSpotifyVolumeAction {

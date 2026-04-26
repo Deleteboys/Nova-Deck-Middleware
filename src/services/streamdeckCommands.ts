@@ -17,7 +17,8 @@ export type ActionConfig =
     | { type: 'SpotifyVolume'; step: number }
     | { type: 'ToggleAudio'; device1: string; device2: string }
     | { type: 'MasterVolume'; step: number }
-    | { type: 'ToggleAppAudio'; process_name: string };
+    | { type: 'ToggleAppAudio'; process_name: string }
+    | { type: 'ToggleMasterMute' };
 
 export type ProcessInfo = {
     pid: number;
