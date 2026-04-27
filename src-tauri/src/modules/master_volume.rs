@@ -1,12 +1,15 @@
 use crate::action::actions::Action;
 use std::fmt::Debug;
+use std::sync::mpsc;
 use windows::Win32::Media::Audio::*;
 use windows::Win32::Media::Audio::Endpoints::*;
 use windows::Win32::System::Com::*;
+use crate::protocol::{HostToPico, VibrationPattern};
 
 #[derive(Debug, Clone)]
 pub struct MasterVolumeAction {
-    pub step: i8, // z.B. 2 für 2% lauter, -2 für 2% leiser
+    pub step: i8,
+    pub tx: mpsc::Sender<HostToPico>,
 }
 
 // Helper-Funktionen für die Windows Core Audio API
@@ -33,6 +36,7 @@ impl Action for MasterVolumeAction {
     fn execute(&self) {
         // Windows nutzt f32 von 0.0 bis 1.0 (also z.B. 5 / 100 = 0.05)
         let step_float = self.step as f32 / 100.0;
+        let tx = self.tx.clone();
 
         // Auslagern in einen Hintergrund-Task, damit das Streamdeck sofort weiterläuft
         tauri::async_runtime::spawn(async move {
@@ -40,6 +44,9 @@ impl Action for MasterVolumeAction {
                 if let Ok(current_vol) = get_master_volume() {
                     // Neue Lautstärke berechnen und zwischen 0.0 und 1.0 limitieren
                     let new_vol = (current_vol + step_float).clamp(0.0, 1.0);
+                    if new_vol == 1.0 || new_vol == 0.0 {
+                        let _ = tx.send(HostToPico::Vibrate { pattern: VibrationPattern::Medium });
+                    }
 
                     if let Err(e) = set_master_volume(new_vol) {
                         println!("Fehler beim Setzen der Windows-Lautstärke: {}", e);

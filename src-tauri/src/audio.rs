@@ -28,7 +28,6 @@ pub unsafe fn adjust_volume_for_pids(target_pids: &[u32], step: i8) -> windows::
                         if let Ok(simple_volume) = session.cast::<ISimpleAudioVolume>() {
                             let current_vol = simple_volume.GetMasterVolume()?;
                             let new_vol = (current_vol + step_float).clamp(0.0, 1.0);
-                            println!("{},{}", current_vol, new_vol);
                             if new_vol == 1.0 || new_vol == 0.0 {
                                 boundary_hit = true;
                             }

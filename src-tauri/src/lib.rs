@@ -370,7 +370,7 @@ fn create_action(config: ActionConfig, tx: mpsc::Sender<HostToPico>) -> Box<dyn 
             Box::new(modules::spotify_volume::SpotifyVolumeAction { step })
         }
         ActionConfig::MasterVolume { step } => {
-            Box::new(modules::master_volume::MasterVolumeAction { step })
+            Box::new(modules::master_volume::MasterVolumeAction { step,tx })
         }
         ActionConfig::ToggleAppAudio { process_name } => {
             Box::new(modules::toggle_app_audio::ToggleAppAudioAction { process_name })
