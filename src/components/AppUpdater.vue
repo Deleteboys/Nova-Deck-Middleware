@@ -19,7 +19,8 @@
               <p class="text-body-2 text-grey">Eine neue Version der Middleware steht bereit.</p>
             </div>
 
-            <div class="d-flex align-center justify-center pa-4 mb-6 border-dashed rounded-lg border-zinc-700 bg-zinc-800 bg-opacity-30">
+            <div
+                class="d-flex align-center justify-center pa-4 mb-6 border-dashed rounded-lg border-zinc-700 bg-zinc-800 bg-opacity-30">
               <div class="text-center flex-1-1-0">
                 <div class="text-caption text-uppercase text-grey mb-1">Aktuell</div>
                 <div class="text-subtitle-1 font-weight-bold font-monospace text-white">v{{ currentVersion }}</div>
@@ -29,11 +30,16 @@
 
               <div class="text-center flex-1-1-0">
                 <div class="text-caption text-uppercase text-grey mb-1">Neu</div>
-                <div class="text-subtitle-1 font-weight-bold text-primary font-monospace">v{{ updateInfo?.version }}</div>
+                <div class="text-subtitle-1 font-weight-bold text-primary font-monospace">v{{
+                    updateInfo?.version
+                  }}
+                </div>
               </div>
             </div>
 
-            <div v-if="updateInfo?.body" class="mb-6 pa-3 rounded bg-zinc-900 border border-zinc-800 text-body-2 text-grey custom-scrollbar" style="max-height: 100px; overflow-y: auto;">
+            <div v-if="updateInfo?.body"
+                 class="mb-6 pa-3 rounded bg-zinc-900 border border-zinc-800 text-body-2 text-grey custom-scrollbar"
+                 style="max-height: 100px; overflow-y: auto;">
               {{ updateInfo.body }}
             </div>
 
@@ -93,10 +99,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, shallowRef, onMounted } from 'vue';
-import { check, type Update } from '@tauri-apps/plugin-updater';
-import { relaunch } from '@tauri-apps/plugin-process';
-import { getVersion } from '@tauri-apps/api/app';
+import {ref, shallowRef, onMounted, onUnmounted} from 'vue';
+import {check, type Update} from '@tauri-apps/plugin-updater';
+import {relaunch} from '@tauri-apps/plugin-process';
+import {getVersion} from '@tauri-apps/api/app';
+import {listen} from '@tauri-apps/api/event';
 
 const dialogVisible = ref(false);
 const updatePhase = ref(1);
@@ -113,18 +120,47 @@ const statusMessage = ref('Lade Update herunter...');
 const downloadDetails = ref('');
 const downloadProgress = ref(0);
 
+let unlistenUpdateTrigger: (() => void) | null = null;
+
+const checkForUpdates = async (isManualCheck = false) => {
+  try {
+    const update = await check();
+
+    if (update) {
+      updateInfo.value = update;
+      updatePhase.value = 1; // Zurücksetzen, falls es schon mal offen war
+      dialogVisible.value = true;
+    } else if (isManualCheck) {
+      alert("Die Middleware ist bereits auf dem neuesten Stand!");
+    }
+  } catch (error) {
+    console.error("Fehler beim Suchen nach Updates:", error);
+    if (isManualCheck) {
+      alert("Fehler bei der Update-Suche: " + String(error));
+    }
+  }
+};
+
 onMounted(async () => {
   try {
     currentVersion.value = await getVersion();
 
-    const update = await check();
-    if (update) {
-      updateInfo.value = update;
-      dialogVisible.value = true;
-    }
+    // 1. Automatischer Check beim Start der App
+    await checkForUpdates(false);
+
+    // 2. Listener für den manuellen Klick in den Settings
+    unlistenUpdateTrigger = await listen('trigger-update-check', (event) => {
+      // Die Payload { manual: true } wurde in den Settings mitgeschickt
+      const isManual = (event.payload as any)?.manual || true;
+      checkForUpdates(isManual);
+    });
   } catch (error) {
-    console.error("Fehler beim Suchen nach Updates:", error);
+    console.error("Fehler bei der Initialisierung des Updaters:", error);
   }
+});
+
+onUnmounted(() => {
+  if (unlistenUpdateTrigger) unlistenUpdateTrigger();
 });
 
 const startUpdate = async () => {
@@ -174,15 +210,41 @@ const startUpdate = async () => {
 </script>
 
 <style scoped>
-.uppercase { text-transform: uppercase; }
-.tracking-widest { letter-spacing: 0.1em !important; }
-.font-monospace { font-family: 'Courier New', Courier, monospace; }
-.gap-3 { gap: 12px; }
-.bg-zinc-800 { background-color: #27272a !important; }
-.bg-zinc-900 { background-color: #121214 !important; }
-.border-b { border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important; }
-.border-zinc-700 { border-color: #3f3f46 !important; }
-.border-zinc-800 { border-color: #27272a !important; }
+.uppercase {
+  text-transform: uppercase;
+}
+
+.tracking-widest {
+  letter-spacing: 0.1em !important;
+}
+
+.font-monospace {
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.gap-3 {
+  gap: 12px;
+}
+
+.bg-zinc-800 {
+  background-color: #27272a !important;
+}
+
+.bg-zinc-900 {
+  background-color: #121214 !important;
+}
+
+.border-b {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.border-zinc-700 {
+  border-color: #3f3f46 !important;
+}
+
+.border-zinc-800 {
+  border-color: #27272a !important;
+}
 
 .border-dashed {
   border-style: dashed !important;
@@ -190,16 +252,31 @@ const startUpdate = async () => {
   border-color: rgba(255, 255, 255, 0.15) !important;
 }
 
-.custom-scrollbar::-webkit-scrollbar { width: 4px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
 
 .spin-animation {
   animation: spin 1.5s linear infinite;
 }
+
 @keyframes spin {
-  100% { transform: rotate(360deg); }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 :deep(.v-window) {

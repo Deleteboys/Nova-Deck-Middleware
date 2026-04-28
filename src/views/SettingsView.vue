@@ -150,7 +150,7 @@ import {
   requestFirmwareVersion
 } from "@/services/streamdeckCommands";
 import { getVersion } from "@tauri-apps/api/app";
-import { listen } from "@tauri-apps/api/event";
+import {emit, listen} from "@tauri-apps/api/event";
 
 // UI State Firmware
 const updatePhase = ref(1);
@@ -260,8 +260,17 @@ const resetUpdate = () => {
 const manualMiddlewareCheck = async () => {
   isCheckingMiddleware.value = true;
 
-  // HIER: Event feuern oder check() vom tauri-apps/plugin-updater importieren
-  // um AppUpdater.vue manuell anzustoßen
+  try {
+    // Feuert ein Event an das gesamte System (wird vom AppUpdater aufgefangen)
+    await emit("trigger-update-check", { manual: true });
+  } catch (error) {
+    console.error("Fehler beim Senden des Update-Events:", error);
+  } finally {
+    // Kurzes Timeout, damit der Button-Ladekreis nicht sofort verschwindet
+    setTimeout(() => {
+      isCheckingMiddleware.value = false;
+    }, 800);
+  }
 
   setTimeout(() => {
     isCheckingMiddleware.value = false;
