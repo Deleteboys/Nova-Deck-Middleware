@@ -66,6 +66,7 @@
 import { ref, onMounted, watch } from 'vue';
 import { useStreamDeckStore } from '@/stores/streamdeck';
 import { getActiveProcesses, setIconSlot } from '@/services/streamdeckCommands';
+import {invoke} from "@tauri-apps/api/core";
 
 const store = useStreamDeckStore();
 
@@ -80,14 +81,20 @@ const oledSlots = ref([
 const fetchProcesses = async () => {
   try {
     const processes = await getActiveProcesses();
-    activeProcesses.value = ['Windows Master Volume', ...processes];
+    activeProcesses.value = ['Windows Master Volume','Foreground Process', ...processes];
   } catch (error) {
     console.error("Prozesse konnten nicht geladen werden:", error);
   }
 };
 
-const handleConfigChange = () => {
+const handleConfigChange = async () => {
   store.updateOledSlots(oledSlots.value);
+  for (let i = 0; i < oledSlots.value.length; i++) {
+    await invoke("update_monitor_mapping", {
+      slot: i,
+      processName: oledSlots.value[i].process || ""
+    });
+  }
 };
 
 /**

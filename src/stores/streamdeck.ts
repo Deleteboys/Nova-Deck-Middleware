@@ -8,6 +8,7 @@ import {
     type TriggerType, setIconSlot
 } from '@/services/streamdeckCommands'
 import type {DeviceConfig} from '@/services/streamdeckCommands'
+import {invoke} from "@tauri-apps/api/core";
 
 const hexToRgb = (hex: string) => {
     const r = parseInt(hex.slice(1, 3), 16)
@@ -162,7 +163,21 @@ export const useStreamDeckStore = defineStore('streamdeck', {
                 }
             }
         },
+        async syncMonitorMappingsToBackend() {
+            const slots = this.activeProfile?.keys['oled-display']?.slots;
+            if (!slots) return;
 
+            for (let i = 0; i < slots.length; i++) {
+                try {
+                    await invoke("update_monitor_mapping", {
+                        slot: i,
+                        processName: slots[i].process || ""
+                    });
+                } catch (e) {
+                    console.error(`Fehler beim Sync des Monitors für Slot ${i}:`, e);
+                }
+            }
+        },
         async syncActiveProfileMappingsToBackend() {
             if (!this.activeProfile) return
 
@@ -189,6 +204,8 @@ export const useStreamDeckStore = defineStore('streamdeck', {
             this.isDeviceConnected = isConnected
             if (isConnected) {
                 console.log("Gerät verbunden - starte Voll-Sync...");
+                await this.syncOledIconsToBackend()
+                await this.syncMonitorMappingsToBackend();
             }
         },
 

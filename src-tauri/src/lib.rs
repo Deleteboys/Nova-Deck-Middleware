@@ -4,6 +4,7 @@ mod audio;
 mod modules;
 mod protocol;
 mod serial;
+mod monitor;
 // Das bindet den Ordner "action" über die mod.rs ein
 
 use crate::action::actions::{ButtonEvent, EncoderEvent, HardwareTrigger};
@@ -37,6 +38,7 @@ struct AppState {
     is_quitting: Mutex<bool>,
     is_device_connected: Arc<AtomicBool>,
     action_manager: Arc<Mutex<ActionManager>>,
+    monitor_slots: Arc<Mutex<[Option<String>; 4]>>,
 }
 
 // Der Command, den dein JavaScript aufruft
@@ -177,6 +179,9 @@ pub fn run() {
     let manager_for_thread = Arc::clone(&action_manager);
     let is_device_connected = Arc::new(AtomicBool::new(false));
     let is_device_connected_for_thread = Arc::clone(&is_device_connected);
+    let monitor_slots = Arc::new(Mutex::new([None, None, None, None]));
+
+    monitor::start_monitoring(Arc::clone(&monitor_slots), tx.clone());
 
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -186,6 +191,7 @@ pub fn run() {
             is_quitting: Mutex::new(false),
             is_device_connected,
             action_manager,
+            monitor_slots,
         })
         // 2. Den Command fur das Frontend registrieren
         .invoke_handler(tauri::generate_handler![
@@ -197,7 +203,8 @@ pub fn run() {
             sync_mappings,
             check_firmware_update,
             download_and_flash_firmware,
-            set_icon_slot
+            set_icon_slot,
+            update_monitor_mapping
         ])
         .setup(move |app| {
             // --- TRAY MENU SETUP ---
@@ -553,7 +560,7 @@ fn set_icon_slot(state: State<AppState>, slot: u8, icon: String) -> Result<(), S
     let tx_guard = state.serial_tx.lock().unwrap();
     if let Some(tx) = tx_guard.as_ref() {
         tx.send(command).map_err(|e| e.to_string())?;
-        println!("Icon für Slot {} auf {:?} gesetzt", slot, icon_enum); // Fürs Debugging
+        // println!("Icon für Slot {} auf {:?} gesetzt", slot, icon_enum); // Fürs Debugging
         Ok(())
     } else {
         Err("Keine Verbindung zum seriellen Thread".into())
@@ -668,4 +675,12 @@ async fn download_and_flash_firmware(app: AppHandle, download_url: String) -> Re
     let _ = fs::remove_file(fw_path);
 
     Ok(())
+}
+
+#[tauri::command]
+fn update_monitor_mapping(state: State<AppState>, slot: u8, process_name: String) {
+    if slot < 4 {
+        let mut slots = state.monitor_slots.lock().unwrap();
+        slots[slot as usize] = if process_name.is_empty() { None } else { Some(process_name) };
+    }
 }

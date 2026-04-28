@@ -12,7 +12,7 @@
       <v-divider class="mb-6 border-opacity-25" color="white"></v-divider>
 
       <v-card color="#18181b" variant="flat" class="border border-zinc-800 rounded-lg overflow-hidden mb-4">
-        <div class="d-flex justify-space-between align-center px-4 py-3">
+        <div class="d-flex justify-space-between align-center px-4 py-3 border-b border-zinc-700">
           <div class="text-body-2 text-grey">Installierte Version</div>
           <div class="d-flex align-center">
             <v-btn
@@ -30,6 +30,23 @@
               {{ currentVersion }}
             </div>
           </div>
+        </div>
+
+        <div class="d-flex justify-space-between align-center px-4 py-3">
+          <div>
+            <div class="text-body-2 text-grey">Manueller Bootloader</div>
+            <div class="text-caption text-zinc-500" style="font-size: 0.7rem !important;">Startet das Gerät im USB-Speicher-Modus</div>
+          </div>
+          <v-btn
+              variant="tonal"
+              color="primary"
+              size="small"
+              prepend-icon="mdi-usb-flash-drive-outline"
+              class="text-none"
+              @click="showBootloaderDialog = true"
+          >
+            Neustart
+          </v-btn>
         </div>
       </v-card>
 
@@ -138,6 +155,31 @@
       </v-card>
 
     </div>
+
+    <v-dialog v-model="showBootloaderDialog" max-width="400" theme="dark">
+      <v-card color="#18181b" class="border border-zinc-800 rounded-lg">
+        <v-card-title class="text-subtitle-1 font-weight-medium pt-4 px-5 text-white">
+          <v-icon color="warning" size="small" class="mr-2 mb-1">mdi-alert-circle-outline</v-icon>
+          Bootloader starten?
+        </v-card-title>
+        <v-card-text class="text-body-2 text-grey px-5 pb-6">
+          Das Gerät wird in den USB-Speicher-Modus versetzt und reagiert kurzzeitig nicht mehr als Streamdeck. Fortfahren?
+        </v-card-text>
+        <v-card-actions class="px-5 pb-4">
+          <v-spacer></v-spacer>
+          <v-btn variant="plain" class="text-none text-grey" @click="showBootloaderDialog = false">Abbrechen</v-btn>
+          <v-btn
+              variant="flat"
+              color="warning"
+              class="text-none"
+              :loading="isBootloaderLoading"
+              @click="confirmManualBootloader"
+          >
+            Ja, Neustart
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -157,6 +199,10 @@ const updatePhase = ref(1);
 const updateProgress = ref(0);
 const statusMessage = ref("");
 const isChecking = ref(false);
+
+// UI State Bootloader
+const showBootloaderDialog = ref(false);
+const isBootloaderLoading = ref(false);
 
 // UI State Middleware
 const isCheckingMiddleware = ref(false);
@@ -225,6 +271,22 @@ const manualUpdateCheck = async () => {
   }, 800);
 };
 
+// Logik für manuellen Bootloader-Modus via Dialog
+const confirmManualBootloader = async () => {
+  isBootloaderLoading.value = true;
+  try {
+    await startBootloader();
+    showBootloaderDialog.value = false;
+  } catch (error) {
+    console.error(`Fehler beim Starten des Bootloaders: ${String(error)}`);
+    showBootloaderDialog.value = false;
+  } finally {
+    setTimeout(() => {
+      isBootloaderLoading.value = false;
+    }, 1000);
+  }
+};
+
 const startUpdate = async () => {
   if (!downloadUrl.value) return;
 
@@ -247,7 +309,7 @@ const startUpdate = async () => {
 
   } catch (error) {
     updatePhase.value = 1;
-    alert(`Firmware-Update fehlgeschlagen: ${String(error)}`);
+    console.error(`Firmware-Update fehlgeschlagen: ${String(error)}`);
   }
 };
 
