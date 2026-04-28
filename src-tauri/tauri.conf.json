@@ -16,7 +16,8 @@
         "width": 1280,
         "height": 720,
         "label": "main",
-        "visible": true
+        "visible": true,
+        "devtools": true
       }
     ],
     "security": {
