@@ -1,9 +1,9 @@
 // Modul-Deklarationen einbinden
 pub mod action;
+mod audio;
 mod modules;
 mod protocol;
 mod serial;
-mod audio;
 // Das bindet den Ordner "action" über die mod.rs ein
 
 use crate::action::actions::{ButtonEvent, EncoderEvent, HardwareTrigger};
@@ -182,6 +182,7 @@ pub fn run() {
     let is_device_connected_for_thread = Arc::clone(&is_device_connected);
 
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         // 1. AppState registrieren, damit `send_to_pico` darauf zugreifen kann
         .manage(AppState {
             serial_tx: Mutex::new(Some(tx)),
@@ -366,7 +367,10 @@ fn parse_key(key_str: &str) -> enigo::Key {
 }
 
 // Factory, die das Config-Enum in ausführbaren Code (Action Trait) verwandelt
-fn create_action(config: ActionConfig, tx: mpsc::Sender<HostToPico>) -> Box<dyn action::actions::Action> {
+fn create_action(
+    config: ActionConfig,
+    tx: mpsc::Sender<HostToPico>,
+) -> Box<dyn action::actions::Action> {
     match config {
         ActionConfig::PressKey { key } => Box::new(modules::press_key_action::PressKeyAction {
             key: parse_key(&key),
@@ -378,7 +382,7 @@ fn create_action(config: ActionConfig, tx: mpsc::Sender<HostToPico>) -> Box<dyn 
             Box::new(modules::spotify_volume::SpotifyVolumeAction { step })
         }
         ActionConfig::MasterVolume { step } => {
-            Box::new(modules::master_volume::MasterVolumeAction { step,tx })
+            Box::new(modules::master_volume::MasterVolumeAction { step, tx })
         }
         ActionConfig::ToggleAppAudio { process_name } => {
             Box::new(modules::toggle_app_audio::ToggleAppAudioAction { process_name })
@@ -387,7 +391,11 @@ fn create_action(config: ActionConfig, tx: mpsc::Sender<HostToPico>) -> Box<dyn 
             Box::new(modules::toggle_master_mute::ToggleMasterMuteAction {})
         }
         ActionConfig::AppVolume { process_name, step } => {
-            Box::new(modules::app_volume_action::AppVolumeAction { process_name, step, tx })
+            Box::new(modules::app_volume_action::AppVolumeAction {
+                process_name,
+                step,
+                tx,
+            })
         }
         ActionConfig::ForegroundVolume { step } => {
             Box::new(modules::foreground_volume::ForegroundVolumeAction { step, tx })
@@ -417,7 +425,12 @@ fn create_action(config: ActionConfig, tx: mpsc::Sender<HostToPico>) -> Box<dyn 
 #[tauri::command]
 fn update_mapping(state: State<AppState>, payload: MappingPayload) -> Result<(), String> {
     // 1. Hole den Sender aus dem State
-    let tx = state.serial_tx.lock().unwrap().clone().ok_or("Keine serielle Verbindung verfügbar")?;
+    let tx = state
+        .serial_tx
+        .lock()
+        .unwrap()
+        .clone()
+        .ok_or("Keine serielle Verbindung verfügbar")?;
 
     let trigger = trigger_from_payload(&payload.element_id, &payload.trigger_type)?;
 
@@ -450,7 +463,12 @@ fn remove_mapping(state: State<AppState>, payload: UnmapPayload) -> Result<(), S
 #[tauri::command]
 fn sync_mappings(state: State<AppState>, mappings: Vec<MappingPayload>) -> Result<(), String> {
     // 1. Hole den Sender
-    let tx = state.serial_tx.lock().unwrap().clone().ok_or("Keine serielle Verbindung verfügbar")?;
+    let tx = state
+        .serial_tx
+        .lock()
+        .unwrap()
+        .clone()
+        .ok_or("Keine serielle Verbindung verfügbar")?;
 
     if let Ok(mut manager) = state.action_manager.lock() {
         manager.clear();
@@ -509,7 +527,6 @@ fn trigger_from_payload(element_id: &str, trigger_type: &str) -> Result<Hardware
     Ok(HardwareTrigger::Encoder { id, event })
 }
 
-
 #[derive(serde::Serialize)]
 pub struct ProcessInfo {
     pub pid: u32,
@@ -529,7 +546,10 @@ fn parse_icon(icon_str: &str) -> IconType {
 #[tauri::command]
 fn set_icon_slot(state: State<AppState>, slot: u8, icon: String) -> Result<(), String> {
     let icon_enum = parse_icon(&icon);
-    let command = HostToPico::SetIconSlot { slot, icon: icon_enum };
+    let command = HostToPico::SetIconSlot {
+        slot,
+        icon: icon_enum,
+    };
 
     let tx_guard = state.serial_tx.lock().unwrap();
     if let Some(tx) = tx_guard.as_ref() {
@@ -546,7 +566,9 @@ fn get_active_processes() -> Vec<String> {
     let mut sys = System::new_all();
     sys.refresh_processes(ProcessesToUpdate::All, true);
 
-    let mut names: Vec<String> = sys.processes().values()
+    let mut names: Vec<String> = sys
+        .processes()
+        .values()
         .map(|p| p.name().to_string_lossy().into_owned())
         .collect();
 

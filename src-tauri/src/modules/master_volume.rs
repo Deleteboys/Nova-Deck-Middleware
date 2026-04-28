@@ -1,10 +1,10 @@
 use crate::action::actions::Action;
+use crate::protocol::{HostToPico, VibrationPattern};
 use std::fmt::Debug;
 use std::sync::mpsc;
-use windows::Win32::Media::Audio::*;
 use windows::Win32::Media::Audio::Endpoints::*;
+use windows::Win32::Media::Audio::*;
 use windows::Win32::System::Com::*;
-use crate::protocol::{HostToPico, VibrationPattern};
 
 #[derive(Debug, Clone)]
 pub struct MasterVolumeAction {
@@ -18,7 +18,8 @@ unsafe fn get_master_volume_interface() -> windows::core::Result<IAudioEndpointV
     let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
     let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
     let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole)?;
-    let endpoint_volume: IAudioEndpointVolume = device.Activate::<IAudioEndpointVolume>(CLSCTX_ALL, None)?;
+    let endpoint_volume: IAudioEndpointVolume =
+        device.Activate::<IAudioEndpointVolume>(CLSCTX_ALL, None)?;
     Ok(endpoint_volume)
 }
 
@@ -45,13 +46,19 @@ impl Action for MasterVolumeAction {
                     // Neue Lautstärke berechnen und zwischen 0.0 und 1.0 limitieren
                     let new_vol = (current_vol + step_float).clamp(0.0, 1.0);
                     if new_vol == 1.0 || new_vol == 0.0 {
-                        let _ = tx.send(HostToPico::Vibrate { pattern: VibrationPattern::Medium });
+                        let _ = tx.send(HostToPico::Vibrate {
+                            pattern: VibrationPattern::Medium,
+                        });
                     }
 
                     if let Err(e) = set_master_volume(new_vol) {
                         println!("Fehler beim Setzen der Windows-Lautstärke: {}", e);
                     } else {
-                        println!("Windows Volume von {:.0}% auf {:.0}% gesetzt", current_vol * 100.0, new_vol * 100.0);
+                        println!(
+                            "Windows Volume von {:.0}% auf {:.0}% gesetzt",
+                            current_vol * 100.0,
+                            new_vol * 100.0
+                        );
                     }
                 } else {
                     println!("Konnte aktuelle Windows-Lautstärke nicht auslesen.");

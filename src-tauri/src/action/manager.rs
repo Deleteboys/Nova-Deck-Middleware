@@ -1,5 +1,5 @@
+use crate::action::actions::{Action, ButtonEvent, HardwareTrigger};
 use std::collections::HashMap;
-use crate::action::actions::{HardwareTrigger, Action, ButtonEvent};
 
 pub struct ActionManager {
     // Ordnet einem Trigger eine Aktion zu
@@ -31,11 +31,14 @@ impl ActionManager {
             // ...prüfe, ob es ein ShortPress Mapping für diesen Button gibt.
             let fallback_trigger = HardwareTrigger::Button {
                 id,
-                event: ButtonEvent::ShortPress
+                event: ButtonEvent::ShortPress,
             };
 
             if let Some(fallback_action) = self.mappings.get(&fallback_trigger) {
-                println!("Kein spezifisches Event gefunden. Nutze ShortPress Fallback für Button {}", id);
+                println!(
+                    "Kein spezifisches Event gefunden. Nutze ShortPress Fallback für Button {}",
+                    id
+                );
                 fallback_action.execute();
             }
         }

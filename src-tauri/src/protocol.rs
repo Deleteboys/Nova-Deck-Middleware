@@ -160,7 +160,7 @@ pub enum HostToPico {
     },
     Vibrate {
         pattern: VibrationPattern,
-    }
+    },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

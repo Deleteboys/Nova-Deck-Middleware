@@ -1,6 +1,6 @@
-use enigo::{Enigo, Key, Keyboard, Settings};
-use enigo::Direction::Click;
 use crate::action::actions::Action;
+use enigo::Direction::Click;
+use enigo::{Enigo, Key, Keyboard, Settings};
 
 #[derive(Debug)]
 pub struct PressKeyAction {

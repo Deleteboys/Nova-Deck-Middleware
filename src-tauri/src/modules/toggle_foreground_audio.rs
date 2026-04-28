@@ -1,7 +1,7 @@
-use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId};
 use crate::action::actions::Action;
+use crate::audio::toggle_mute_for_pids;
 use std::fmt::Debug;
-use crate::audio::toggle_mute_for_pids; // <-- Import der zentralen Funktion
+use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId}; // <-- Import der zentralen Funktion
 
 #[derive(Debug, Clone)]
 pub struct ToggleForegroundAudioAction {}

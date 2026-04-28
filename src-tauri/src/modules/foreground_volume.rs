@@ -1,8 +1,8 @@
-use std::sync::mpsc;
-use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId};
 use crate::action::actions::Action;
 use crate::audio::adjust_volume_for_pids;
 use crate::protocol::{HostToPico, VibrationPattern};
+use std::sync::mpsc;
+use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId};
 
 #[derive(Debug, Clone)]
 pub struct ForegroundVolumeAction {
@@ -28,7 +28,9 @@ impl Action for ForegroundVolumeAction {
                 if pid != 0 {
                     match adjust_volume_for_pids(&[pid], step) {
                         Ok(true) => {
-                            let _ = tx.send(HostToPico::Vibrate { pattern: VibrationPattern::Medium });
+                            let _ = tx.send(HostToPico::Vibrate {
+                                pattern: VibrationPattern::Medium,
+                            });
                         }
                         Err(e) => println!("Vordergrund-Lautstärke angepasst (PID: {})", pid),
                         _ => {} // Nichts tun, wenn das Limit nicht erreicht wurde

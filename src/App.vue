@@ -9,6 +9,9 @@
         </v-fade-transition>
       </router-view>
     </v-main>
+
+    <AppUpdater />
+
   </v-app>
 </template>
 
@@ -22,6 +25,7 @@ import {
   type DeviceConfig
 } from '@/services/streamdeckCommands';
 import TopBar from "./components/layout/TopBar.vue";
+import AppUpdater from "@/components/AppUpdater.vue";
 
 const store = useStreamDeckStore();
 const unlistenCallbacks: UnlistenFn[] = [];

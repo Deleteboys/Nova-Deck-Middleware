@@ -33,7 +33,10 @@ impl InputTracker {
                         if last_release.elapsed().as_millis() < DOUBLE_PRESS_TIMEOUT_MS {
                             self.button_press_times[id_usize] = None;
                             self.button_last_release[id_usize] = None;
-                            return Some(HardwareTrigger::Button { id, event: ButtonEvent::DoublePress });
+                            return Some(HardwareTrigger::Button {
+                                id,
+                                event: ButtonEvent::DoublePress,
+                            });
                         }
                     }
                     None
@@ -44,9 +47,15 @@ impl InputTracker {
                         self.button_last_release[id_usize] = Some(Instant::now());
 
                         if duration >= LONG_PRESS_MS {
-                            return Some(HardwareTrigger::Button { id, event: ButtonEvent::LongPress });
+                            return Some(HardwareTrigger::Button {
+                                id,
+                                event: ButtonEvent::LongPress,
+                            });
                         } else {
-                            return Some(HardwareTrigger::Button { id, event: ButtonEvent::ShortPress });
+                            return Some(HardwareTrigger::Button {
+                                id,
+                                event: ButtonEvent::ShortPress,
+                            });
                         }
                     }
                     None
@@ -67,7 +76,7 @@ impl InputTracker {
                     if !self.encoder_moved_while_pushed[idx] {
                         return Some(HardwareTrigger::Encoder {
                             id,
-                            event: EncoderEvent::PushPress
+                            event: EncoderEvent::PushPress,
                         });
                     }
                     None

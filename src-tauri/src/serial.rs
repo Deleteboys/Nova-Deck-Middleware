@@ -1,15 +1,15 @@
 use std::io::{ErrorKind, Read, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{mpsc, Arc, Mutex};
 use std::sync::mpsc::TryRecvError;
+use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use serialport::{available_ports, SerialPortType};
-use tauri::{AppHandle, Emitter};
 use crate::action::manager::ActionManager;
 use crate::action::tracker::InputTracker;
 use crate::protocol::{HostToPico, PicoToHost};
+use serialport::{available_ports, SerialPortType};
+use tauri::{AppHandle, Emitter};
 
 pub fn start_serial_thread(
     app: AppHandle,

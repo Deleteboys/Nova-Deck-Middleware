@@ -30,7 +30,7 @@ pub trait Action: Send + Sync + Debug {
 }
 
 // Beispiel 1: Enigo (Tastendruck)
-use enigo::{Enigo, Key, Keyboard, Settings, Direction::Click};
+use enigo::{Direction::Click, Enigo, Key, Keyboard, Settings};
 
 #[derive(Debug)]
 pub struct PressKeyAction {

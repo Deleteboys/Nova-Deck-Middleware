@@ -1,5 +1,5 @@
 use crate::action::actions::Action;
-use rspotify::{prelude::*, AuthCodeSpotify, Credentials, OAuth, scopes, Config};
+use rspotify::{prelude::*, scopes, AuthCodeSpotify, Config, Credentials, OAuth};
 use std::fmt::Debug;
 
 #[derive(Debug, Clone)]
@@ -34,12 +34,11 @@ impl Action for SpotifyVolumeAction {
                     *spotify.get_token().lock().await.unwrap() = Some(token);
 
                     // 1. Aktuelle Lautstärke auslesen
-                    if let Ok(Some(playback)) = spotify.current_playback(None, None::<Vec<_>>).await {
-
+                    if let Ok(Some(playback)) = spotify.current_playback(None, None::<Vec<_>>).await
+                    {
                         // FIX: playback.device ist direkt verfügbar, wir müssen nur schauen,
                         // ob volume_percent gesetzt ist!
                         if let Some(current_vol) = playback.device.volume_percent {
-
                             // 2. Neue Lautstärke berechnen und zwischen 0 und 100 limitieren (.clamp)
                             let new_vol = (current_vol as i16 + step as i16).clamp(0, 100) as u8;
 
@@ -47,12 +46,14 @@ impl Action for SpotifyVolumeAction {
                             if let Err(e) = spotify.volume(new_vol, None).await {
                                 println!("Spotify API Fehler: {}", e);
                             } else {
-                                println!("Spotify Volume von {}% auf {}% gesetzt", current_vol, new_vol);
+                                println!(
+                                    "Spotify Volume von {}% auf {}% gesetzt",
+                                    current_vol, new_vol
+                                );
                             }
                         } else {
                             println!("Konnte aktuelle Lautstärke nicht auslesen.");
                         }
-
                     } else {
                         println!("Kein aktives Gerät in Spotify gefunden. (Läuft Musik?)");
                     }

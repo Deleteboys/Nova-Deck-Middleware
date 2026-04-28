@@ -1,7 +1,7 @@
 use crate::action::actions::Action;
 use std::fmt::Debug;
-use windows::Win32::Media::Audio::*;
 use windows::Win32::Media::Audio::Endpoints::IAudioEndpointVolume;
+use windows::Win32::Media::Audio::*;
 use windows::Win32::System::Com::*;
 
 #[derive(Debug, Clone)]
@@ -11,7 +11,8 @@ unsafe fn get_master_volume_interface() -> windows::core::Result<IAudioEndpointV
     let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
     let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
     let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole)?;
-    let endpoint_volume: IAudioEndpointVolume = device.Activate::<IAudioEndpointVolume>(CLSCTX_ALL, None)?;
+    let endpoint_volume: IAudioEndpointVolume =
+        device.Activate::<IAudioEndpointVolume>(CLSCTX_ALL, None)?;
     Ok(endpoint_volume)
 }
 
