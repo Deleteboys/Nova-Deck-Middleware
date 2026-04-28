@@ -549,6 +549,11 @@ fn parse_icon(icon_str: &str) -> IconType {
         "SPOTIFY" => IconType::Spotify,
         "DISCORD" => IconType::Discord,
         "BROWSER" => IconType::Browser,
+        "MIC" => IconType::Mic,
+        "CAMERA" => IconType::Camera,
+        "PLAY_PAUSE" => IconType::PlayPause,
+        "LIGHT" => IconType::Light,
+        "ACTIVE_WINDOW" => IconType::ActiveWindow,
         _ => IconType::None,
     }
 }
