@@ -128,10 +128,8 @@ const checkForUpdates = async (isManualCheck = false) => {
 
     if (update) {
       updateInfo.value = update;
-      updatePhase.value = 1; // Zurücksetzen, falls es schon mal offen war
+      updatePhase.value = 1;
       dialogVisible.value = true;
-    } else if (isManualCheck) {
-      alert("Die Middleware ist bereits auf dem neuesten Stand!");
     }
   } catch (error) {
     console.error("Fehler beim Suchen nach Updates:", error);

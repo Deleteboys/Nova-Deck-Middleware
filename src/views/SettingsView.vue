@@ -261,12 +261,10 @@ const manualMiddlewareCheck = async () => {
   isCheckingMiddleware.value = true;
 
   try {
-    // Feuert ein Event an das gesamte System (wird vom AppUpdater aufgefangen)
     await emit("trigger-update-check", { manual: true });
   } catch (error) {
     console.error("Fehler beim Senden des Update-Events:", error);
   } finally {
-    // Kurzes Timeout, damit der Button-Ladekreis nicht sofort verschwindet
     setTimeout(() => {
       isCheckingMiddleware.value = false;
     }, 800);
