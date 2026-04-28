@@ -25,7 +25,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -36,7 +36,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDc1RjdDMzgxQjRCMDRGNzMKUldSelQ3QzBnY1AzZGVMaE9ZNEdSbUZhTHpnNzJmNGloMWxXbFVpLzFGMFNmbStrUTdPMHJ3YWsK",
+      "pubkey": "RWRzT7C0gcP3deLhOY4GRmFaLzg72f4ih1lWlUi/1F0Sfm+kQ7O0rwak",
       "endpoints": [
         "https://github.com/Deleteboys/Stream-Deck-Middleware/releases/latest/download/latest.json"
       ]
