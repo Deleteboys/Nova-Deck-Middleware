@@ -36,7 +36,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "RWRzT7C0gcP3deLhOY4GRmFaLzg72f4ih1lWlUi/1F0Sfm+kQ7O0rwak",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM3MkFDM0RCRkU1OUQwNUYKUldSZjBGbisyOE1xTjlyK0hmZEpSK3FVNVNac3BmR3RTRGpDeEdYbnNtQW9LZXN3aTQybjZuMHMK",
       "endpoints": [
         "https://github.com/Deleteboys/Stream-Deck-Middleware/releases/latest/download/latest.json"
       ]
