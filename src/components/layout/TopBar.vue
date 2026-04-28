@@ -3,7 +3,7 @@
     <div class="d-flex align-center flex-1-1-0">
       <v-icon color="primary" size="large" class="mr-2">mdi-developer-board</v-icon>
       <div class="text-h6 font-weight-bold text-no-wrap">
-        DIY DECK <v-chip size="x-small" color="primary" variant="tonal" class="ml-1">V2</v-chip>
+        DIY DECK Test Update<v-chip size="x-small" color="primary" variant="tonal" class="ml-1">V2</v-chip>
       </div>
     </div>
 
