@@ -79,6 +79,10 @@ fn capture_window_state(window: &tauri::WebviewWindow) -> Option<PersistedWindow
     let position = window.outer_position().ok()?;
     let size = window.outer_size().ok()?;
 
+    if window.is_minimized().unwrap_or(false) {
+        return None;
+    }
+
     Some(PersistedWindowState {
         x: position.x,
         y: position.y,
@@ -106,7 +110,7 @@ fn load_window_state(app: &AppHandle) -> Option<PersistedWindowState> {
     let content = fs::read_to_string(path).ok()?;
     let state: PersistedWindowState = serde_json::from_str(&content).ok()?;
 
-    if state.width == 0 || state.height == 0 {
+    if state.width == 0 || state.height == 0 || state.x <= -10000 || state.y <= -10000 {
         return None;
     }
 
