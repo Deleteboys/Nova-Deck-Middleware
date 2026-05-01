@@ -32,7 +32,7 @@ impl Action for ForegroundVolumeAction {
                                 pattern: VibrationPattern::Medium,
                             });
                         }
-                        Err(e) => println!("Vordergrund-Lautstärke angepasst (PID: {})", pid),
+                        Err(_e) => println!("Vordergrund-Lautstärke angepasst (PID: {})", pid),
                         _ => {} // Nichts tun, wenn das Limit nicht erreicht wurde
                     }
                 }

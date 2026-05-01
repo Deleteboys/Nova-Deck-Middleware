@@ -1,210 +1,38 @@
-// Modul-Deklarationen einbinden
 pub mod action;
 mod audio;
 mod modules;
 mod protocol;
 mod serial;
 mod monitor;
-// Das bindet den Ordner "action" über die mod.rs ein
+mod commands;
+mod window;
 
-use crate::action::actions::{ButtonEvent, EncoderEvent, HardwareTrigger};
 use crate::action::manager::ActionManager;
-use crate::protocol::{HostToPico, IconType};
-use serde::{Deserialize, Serialize};
-use std::fs;
-use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use crate::protocol::{HostToPico};
+use serde::{Serialize};
+use std::sync::atomic::{AtomicBool};
 use std::sync::Mutex;
 use std::sync::{mpsc, Arc};
 use std::thread;
-use std::time::Duration;
-use sysinfo::{Disks, ProcessesToUpdate, System};
-use tauri::{menu::{Menu, MenuItem}, tray::{TrayIconBuilder, TrayIconEvent}, AppHandle, Emitter, Manager, RunEvent, State, WindowEvent};
+use tauri::{menu::{Menu, MenuItem}, tray::{TrayIconBuilder, TrayIconEvent}, Emitter, Manager, RunEvent, WindowEvent};
 use tauri_plugin_autostart::MacosLauncher;
 
-const WINDOW_STATE_FILE: &str = "window-state.json";
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct PersistedWindowState {
-    x: i32,
-    y: i32,
-    width: u32,
-    height: u32,
-    maximized: bool,
-    #[serde(default)]
-    start_minimized: bool,
+#[derive(serde::Serialize)]
+pub struct ProcessInfo {
+    pub pid: u32,
+    pub name: String,
 }
 
-// State, um vom UI Befehle an den Hintergrund-Thread zu schicken
-struct AppState {
-    serial_tx: Mutex<Option<mpsc::Sender<HostToPico>>>,
-    is_quitting: Mutex<bool>,
-    is_device_connected: Arc<AtomicBool>,
-    action_manager: Arc<Mutex<ActionManager>>,
-    monitor_slots: Arc<Mutex<[Option<String>; 4]>>,
-}
-
-// Der Command, den dein JavaScript aufruft
-#[tauri::command]
-fn send_to_pico(state: State<AppState>, command: HostToPico) -> Result<(), String> {
-    let tx_guard = state.serial_tx.lock().unwrap();
-    if let Some(tx) = tx_guard.as_ref() {
-        tx.send(command).map_err(|e| e.to_string())?;
-        Ok(())
-    } else {
-        Err("Keine Verbindung zum seriellen Thread".into())
-    }
-}
-
-#[tauri::command]
-fn set_start_minimized(app: AppHandle, value: bool) {
-    if let Some(window) = app.get_webview_window("main") {
-        let mut state = capture_window_state(&window).unwrap_or(PersistedWindowState {
-            x: 100, y: 100, width: 800, height: 600, maximized: false, start_minimized: value
-        });
-        state.start_minimized = value;
-
-        if let Some(path) = window_state_path(&app) {
-            if let Ok(serialized) = serde_json::to_string(&state) {
-                let _ = std::fs::write(path, serialized);
-            }
-        }
-    }
-}
-
-#[tauri::command]
-fn get_start_minimized(app: AppHandle) -> bool {
-    load_window_state(&app).map(|s| s.start_minimized).unwrap_or(false)
-}
-
-#[tauri::command]
-fn get_connection_status(state: State<AppState>) -> bool {
-    state.is_device_connected.load(Ordering::Relaxed)
-}
-
-fn is_quitting(app: &AppHandle) -> bool {
-    app.state::<AppState>()
-        .is_quitting
-        .lock()
-        .map(|v| *v)
-        .unwrap_or(false)
-}
-
-fn window_state_path(app: &AppHandle) -> Option<PathBuf> {
-    let mut base = app.path().app_data_dir().ok()?;
-    if fs::create_dir_all(&base).is_err() {
-        return None;
-    }
-    base.push(WINDOW_STATE_FILE);
-    Some(base)
-}
-
-fn capture_window_state(window: &tauri::WebviewWindow) -> Option<PersistedWindowState> {
-    let position = window.outer_position().ok()?;
-    let size = window.outer_size().ok()?;
-
-    if window.is_minimized().unwrap_or(false) {
-        return None;
-    }
-
-    let old_state = load_window_state(&window.app_handle());
-    let current_start_minimized = old_state.map(|s| s.start_minimized).unwrap_or(false);
-
-    Some(PersistedWindowState {
-        x: position.x,
-        y: position.y,
-        width: size.width,
-        height: size.height,
-        maximized: window.is_maximized().unwrap_or(false),
-        start_minimized: current_start_minimized,
-    })
-}
-
-fn persist_window_state(window: &tauri::WebviewWindow) {
-    let Some(state) = capture_window_state(window) else {
-        return;
-    };
-    let Some(path) = window_state_path(&window.app_handle()) else {
-        return;
-    };
-
-    if let Ok(serialized) = serde_json::to_string(&state) {
-        let _ = fs::write(path, serialized);
-    }
-}
-
-fn load_window_state(app: &AppHandle) -> Option<PersistedWindowState> {
-    let path = window_state_path(app)?;
-    let content = fs::read_to_string(path).ok()?;
-    let state: PersistedWindowState = serde_json::from_str(&content).ok()?;
-
-    if state.width == 0 || state.height == 0 || state.x <= -10000 || state.y <= -10000 {
-        return None;
-    }
-
-    Some(state)
-}
-
-fn apply_window_state(window: &tauri::WebviewWindow, state: &PersistedWindowState) {
-    if state.maximized {
-        let _ = window.maximize();
-        return;
-    }
-
-    let _ = window.unmaximize();
-    let _ = window.set_size(tauri::Size::Physical(tauri::PhysicalSize::new(
-        state.width,
-        state.height,
-    )));
-    let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition::new(
-        state.x, state.y,
-    )));
-}
-
-fn shutdown_app(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
-        persist_window_state(&window);
-    }
-
-    let state = app.state::<AppState>();
-    if let Ok(mut quitting) = state.is_quitting.lock() {
-        *quitting = true;
-    }
-
-    // Sender droppen, damit der Serial-Thread uber "Disconnected" sauber aussteigt.
-    if let Ok(mut tx_guard) = state.serial_tx.lock() {
-        tx_guard.take();
-    }
-
-    app.exit(0);
-}
-
-fn show_or_create_main_window(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.show();
-        let _ = window.set_focus();
-    } else {
-        let window = tauri::WebviewWindowBuilder::new(
-            app,
-            "main",
-            tauri::WebviewUrl::App("index.html".into()),
-        )
-        .title("Mein Programm")
-        .build();
-
-        if let Ok(window) = window {
-            if let Some(state) = load_window_state(app) {
-                apply_window_state(&window, &state);
-            }
-            let _ = window.show();
-            let _ = window.set_focus();
-        }
-    }
+pub struct AppState {
+    pub serial_tx: Mutex<Option<mpsc::Sender<HostToPico>>>,
+    pub is_quitting: Mutex<bool>,
+    pub is_device_connected: Arc<AtomicBool>,
+    pub action_manager: Arc<Mutex<ActionManager>>,
+    pub monitor_slots: Arc<Mutex<[Option<String>; 4]>>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Channel fur den seriellen Thread erstellen
     let (tx, rx) = mpsc::channel::<HostToPico>();
 
     let action_manager = Arc::new(Mutex::new(ActionManager::new()));
@@ -228,18 +56,18 @@ pub fn run() {
         })
         // 2. Den Command fur das Frontend registrieren
         .invoke_handler(tauri::generate_handler![
-            send_to_pico,
-            get_connection_status,
-            update_mapping,
-            remove_mapping,
-            get_active_processes,
-            sync_mappings,
-            check_firmware_update,
-            download_and_flash_firmware,
-            set_icon_slot,
-            update_monitor_mapping,
-            set_start_minimized,
-            get_start_minimized
+            commands::send_to_pico,
+            commands::get_connection_status,
+            commands::update_mapping,
+            commands::remove_mapping,
+            commands::get_active_processes,
+            commands::sync_mappings,
+            commands::check_firmware_update,
+            commands::download_and_flash_firmware,
+            commands::set_icon_slot,
+            commands::update_monitor_mapping,
+            commands::set_start_minimized,
+            commands::get_start_minimized
         ])
         .setup(move |app| {
             // --- TRAY MENU SETUP ---
@@ -255,10 +83,10 @@ pub fn run() {
                 .menu(&menu)
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "quit" => {
-                        shutdown_app(app);
+                        window::shutdown_app(app);
                     }
                     "show" => {
-                        show_or_create_main_window(app);
+                        window::show_or_create_main_window(app);
                     }
                     _ => {}
                 })
@@ -269,7 +97,7 @@ pub fn run() {
                     } = event
                     {
                         let app = tray.app_handle();
-                        show_or_create_main_window(&app);
+                        window::show_or_create_main_window(&app);
                     }
                 })
                 .build(app)?;
@@ -287,9 +115,9 @@ pub fn run() {
 
             // --- FENSTER LOGIK ---
             if let Some(window) = app.get_webview_window("main") {
-                let state = load_window_state(&app.handle());
+                let state = window::load_window_state(&app.handle());
                 if let Some(s) = &state {
-                    apply_window_state(&window, s);
+                    window::apply_window_state(&window, s);
                     if s.start_minimized {
                         let _ = window.hide();
                     } else {
@@ -313,25 +141,23 @@ pub fn run() {
             WindowEvent::CloseRequested { .. } => {
                 if let Some(webview_window) = window.app_handle().get_webview_window(window.label())
                 {
-                    persist_window_state(&webview_window);
+                    window::persist_window_state(&webview_window);
                 }
 
-                if is_quitting(&window.app_handle()) {
+                if window::is_quitting(&window.app_handle()) {
                     return;
                 }
-                // Nicht nur verstecken: WebView wirklich schließen, damit keine UI-Ressourcen mehr laufen.
-                // ExitRequested wird unten bereits abgefangen, sodass die Tray-App weiterlebt.
             }
             WindowEvent::Moved(_) | WindowEvent::Resized(_) => {
                 if let Some(webview_window) = window.app_handle().get_webview_window(window.label())
                 {
-                    persist_window_state(&webview_window);
+                    window::persist_window_state(&webview_window);
                 }
             }
             WindowEvent::Focused(false) => {
                 if let Some(webview_window) = window.app_handle().get_webview_window(window.label())
                 {
-                    persist_window_state(&webview_window);
+                    window::persist_window_state(&webview_window);
                 }
             }
             _ => {}
@@ -342,7 +168,7 @@ pub fn run() {
     app.run(|app, event| {
         if let RunEvent::ExitRequested { api, .. } = event {
             if let Some(window) = app.get_webview_window("main") {
-                persist_window_state(&window);
+                window::persist_window_state(&window);
             }
 
             let state = app.state::<AppState>();
@@ -352,386 +178,4 @@ pub fn run() {
             }
         }
     });
-}
-
-#[derive(Deserialize, Serialize, Debug, Clone)]
-#[serde(tag = "type")] // <-- Das ist die Magie!
-pub enum ActionConfig {
-    PressKey { key: String },
-    MediaControl { key: String },
-    SpotifyVolume { step: i8 },
-    ToggleAudio { device1: String, device2: String },
-    MasterVolume { step: i8 },
-    ToggleAppAudio { process_name: String },
-    ToggleMasterMute,
-    AppVolume { process_name: String, step: i8 },
-    ForegroundVolume { step: i8 },
-    ToggleForegroundAudio,
-    // ... hier kommen alle deine zukünftigen Module rein
-}
-
-// Deine Payload ändert sich: Wir erwarten jetzt das ActionConfig Enum
-#[derive(Deserialize, Serialize, Clone)]
-pub struct MappingPayload {
-    pub element_id: String,
-    pub trigger_type: String,
-    pub action_config: ActionConfig, // <-- Statt action_id als String
-}
-
-#[derive(serde::Deserialize)]
-pub struct UnmapPayload {
-    pub element_id: String,
-    pub trigger_type: String,
-}
-
-// Hilfsfunktion: Wandelt String in Enigo-Key um
-fn parse_key(key_str: &str) -> enigo::Key {
-    let key_upper = key_str.to_uppercase();
-
-    if key_upper.starts_with('F') {
-        if let Ok(num) = key_upper[1..].parse::<u8>() {
-            return match num {
-                13 => enigo::Key::F13,
-                14 => enigo::Key::F14,
-                15 => enigo::Key::F15,
-                16 => enigo::Key::F16,
-                17 => enigo::Key::F17,
-                18 => enigo::Key::F18,
-                19 => enigo::Key::F19,
-                20 => enigo::Key::F20,
-                21 => enigo::Key::F21,
-                22 => enigo::Key::F22,
-                23 => enigo::Key::F23,
-                24 => enigo::Key::F24,
-                _ => enigo::Key::Return, // Fallback
-            };
-        }
-    }
-
-    match key_upper.to_uppercase().as_str() {
-        "A" => enigo::Key::Unicode('a'),
-        "MEDIAPLAYPAUSE" => enigo::Key::MediaPlayPause,
-        "MEDIANEXT" => enigo::Key::MediaNextTrack,
-        "MEDIAPREV" => enigo::Key::MediaPrevTrack,
-        "MEDIAMUTE" => enigo::Key::VolumeMute,
-        _ => enigo::Key::Return,
-    }
-}
-
-// Factory, die das Config-Enum in ausführbaren Code (Action Trait) verwandelt
-fn create_action(
-    config: ActionConfig,
-    tx: mpsc::Sender<HostToPico>,
-) -> Box<dyn action::actions::Action> {
-    match config {
-        ActionConfig::PressKey { key } => Box::new(modules::press_key_action::PressKeyAction {
-            key: parse_key(&key),
-        }),
-        ActionConfig::MediaControl { key } => Box::new(modules::press_key_action::PressKeyAction {
-            key: parse_key(&key),
-        }),
-        ActionConfig::SpotifyVolume { step } => {
-            Box::new(modules::spotify_volume::SpotifyVolumeAction { step })
-        }
-        ActionConfig::MasterVolume { step } => {
-            Box::new(modules::master_volume::MasterVolumeAction { step, tx })
-        }
-        ActionConfig::ToggleAppAudio { process_name } => {
-            Box::new(modules::toggle_app_audio::ToggleAppAudioAction { process_name })
-        }
-        ActionConfig::ToggleMasterMute => {
-            Box::new(modules::toggle_master_mute::ToggleMasterMuteAction {})
-        }
-        ActionConfig::AppVolume { process_name, step } => {
-            Box::new(modules::app_volume_action::AppVolumeAction {
-                process_name,
-                step,
-                tx,
-            })
-        }
-        ActionConfig::ForegroundVolume { step } => {
-            Box::new(modules::foreground_volume::ForegroundVolumeAction { step, tx })
-        }
-        ActionConfig::ToggleForegroundAudio => {
-            Box::new(modules::toggle_foreground_audio::ToggleForegroundAudioAction {})
-        }
-        // ActionConfig::SpotifyVolume { volume } => {
-        //     Box::new(crate::modules::spotify_action::SetSpotifyVolumeAction {
-        //         volume
-        //     })
-        // }
-        // ActionConfig::ToggleAudio { device1, device2 } => {
-        //     Box::new(crate::modules::audio_action::ToggleAudioAction {
-        //         device1, device2
-        //     })
-        // }
-        _ => {
-            println!("WARNUNG: Aktion noch nicht implementiert!");
-            Box::new(modules::press_key_action::PressKeyAction {
-                key: enigo::Key::F14,
-            })
-        }
-    }
-}
-
-#[tauri::command]
-fn update_mapping(state: State<AppState>, payload: MappingPayload) -> Result<(), String> {
-    // 1. Hole den Sender aus dem State
-    let tx = state
-        .serial_tx
-        .lock()
-        .unwrap()
-        .clone()
-        .ok_or("Keine serielle Verbindung verfügbar")?;
-
-    let trigger = trigger_from_payload(&payload.element_id, &payload.trigger_type)?;
-
-    // 2. Übergebe ihn an create_action
-    let action = create_action(payload.action_config, tx);
-
-    if let Ok(mut manager) = state.action_manager.lock() {
-        manager.register(trigger, action);
-    }
-    Ok(())
-}
-
-#[tauri::command]
-fn remove_mapping(state: State<AppState>, payload: UnmapPayload) -> Result<(), String> {
-    // Nutze auch hier die vollständige Hilfsfunktion
-    let trigger = trigger_from_payload(&payload.element_id, &payload.trigger_type)?;
-
-    // Mapping aus dem Manager löschen
-    if let Ok(mut manager) = state.action_manager.lock() {
-        manager.unregister(&trigger);
-        println!(
-            "Aktion entfernt von: {} ({})",
-            payload.element_id, payload.trigger_type
-        );
-    }
-
-    Ok(())
-}
-
-#[tauri::command]
-fn sync_mappings(state: State<AppState>, mappings: Vec<MappingPayload>) -> Result<(), String> {
-    // 1. Hole den Sender
-    let tx = state
-        .serial_tx
-        .lock()
-        .unwrap()
-        .clone()
-        .ok_or("Keine serielle Verbindung verfügbar")?;
-
-    if let Ok(mut manager) = state.action_manager.lock() {
-        manager.clear();
-
-        for payload in mappings {
-            if let Ok(trigger) = trigger_from_payload(&payload.element_id, &payload.trigger_type) {
-                // 2. Sender mitgeben (wir müssen hier tx.clone() machen, falls wir in der Schleife sind)
-                let action = create_action(payload.action_config.clone(), tx.clone());
-                manager.register(trigger, action);
-            }
-        }
-    }
-
-    Ok(())
-}
-
-fn parse_element_id(element_id: &str) -> Result<(bool, u8), String> {
-    let is_button = element_id.starts_with("btn-");
-    let is_encoder = element_id.starts_with("enc-");
-
-    if !is_button && !is_encoder {
-        return Err(format!("Unknown element_id: {element_id}"));
-    }
-
-    let id_str = element_id.replace("btn-", "").replace("enc-", "");
-    let id = id_str
-        .parse::<u8>()
-        .map_err(|_| format!("Invalid element_id: {element_id}"))?;
-
-    Ok((is_button, id))
-}
-
-fn trigger_from_payload(element_id: &str, trigger_type: &str) -> Result<HardwareTrigger, String> {
-    let (is_button, id) = parse_element_id(element_id)?;
-
-    if is_button {
-        let event = match trigger_type {
-            "ShortPress" => ButtonEvent::ShortPress,
-            "LongPress" => ButtonEvent::LongPress,
-            "DoublePress" => ButtonEvent::DoublePress,
-            _ => return Err(format!("Unknown button trigger: {trigger_type}")),
-        };
-
-        return Ok(HardwareTrigger::Button { id, event });
-    }
-
-    let event = match trigger_type {
-        "TurnLeft" => EncoderEvent::TurnLeft,
-        "TurnRight" => EncoderEvent::TurnRight,
-        "PushTurnLeft" => EncoderEvent::PushTurnLeft,
-        "PushTurnRight" => EncoderEvent::PushTurnRight,
-        "PushPress" => EncoderEvent::PushPress,
-        _ => return Err(format!("Unknown encoder trigger: {trigger_type}")),
-    };
-
-    Ok(HardwareTrigger::Encoder { id, event })
-}
-
-#[derive(serde::Serialize)]
-pub struct ProcessInfo {
-    pub pid: u32,
-    pub name: String,
-}
-
-fn parse_icon(icon_str: &str) -> IconType {
-    match icon_str.to_uppercase().as_str() {
-        "MASTER" => IconType::Master,
-        "SPOTIFY" => IconType::Spotify,
-        "DISCORD" => IconType::Discord,
-        "BROWSER" => IconType::Browser,
-        "MIC" => IconType::Mic,
-        "CAMERA" => IconType::Camera,
-        "PLAY_PAUSE" => IconType::PlayPause,
-        "LIGHT" => IconType::Light,
-        "ACTIVE_WINDOW" => IconType::ActiveWindow,
-        _ => IconType::None,
-    }
-}
-
-#[tauri::command]
-fn set_icon_slot(state: State<AppState>, slot: u8, icon: String) -> Result<(), String> {
-    let icon_enum = parse_icon(&icon);
-    let command = HostToPico::SetIconSlot {
-        slot,
-        icon: icon_enum,
-    };
-
-    let tx_guard = state.serial_tx.lock().unwrap();
-    if let Some(tx) = tx_guard.as_ref() {
-        tx.send(command).map_err(|e| e.to_string())?;
-        // println!("Icon für Slot {} auf {:?} gesetzt", slot, icon_enum); // Fürs Debugging
-        Ok(())
-    } else {
-        Err("Keine Verbindung zum seriellen Thread".into())
-    }
-}
-
-#[tauri::command]
-fn get_active_processes() -> Vec<String> {
-    let mut sys = System::new_all();
-    sys.refresh_processes(ProcessesToUpdate::All, true);
-
-    let mut names: Vec<String> = sys
-        .processes()
-        .values()
-        .map(|p| p.name().to_string_lossy().into_owned())
-        .collect();
-
-    // Alphabetisch sortieren und dann alle aufeinanderfolgenden Duplikate löschen!
-    names.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
-    names.dedup();
-
-    names
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct FirmwareUpdateInfo {
-    pub version: String,
-    pub download_url: String,
-}
-
-// 1. Prüft GitHub auf das neueste Release
-#[tauri::command]
-async fn check_firmware_update() -> Result<Option<FirmwareUpdateInfo>, String> {
-    let client = reqwest::Client::builder()
-        .user_agent("StreamDeck-Middleware") // GitHub verlangt einen User-Agent
-        .build()
-        .map_err(|e| e.to_string())?;
-
-    // WICHTIG: Ersetze dies durch deinen echten GitHub Repo-Pfad!
-    let url = "https://api.github.com/repos/Deleteboys/Stream-Deck-Firmeware/releases/latest";
-
-    let response = client.get(url).send().await.map_err(|e| e.to_string())?;
-
-    if !response.status().is_success() {
-        return Ok(None); // Kein Release gefunden oder privates Repo
-    }
-
-    let json: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
-
-    let version = json["tag_name"].as_str().unwrap_or("").to_string();
-
-    // Suche nach der .uf2 Datei in den Assets
-    let download_url = json["assets"].as_array()
-        .and_then(|assets| {
-            assets.iter().find(|a| {
-                a["name"].as_str().unwrap_or("").ends_with(".uf2")
-            })
-        })
-        .and_then(|asset| asset["browser_download_url"].as_str())
-        .map(|s| s.to_string());
-
-    if let Some(url) = download_url {
-        Ok(Some(FirmwareUpdateInfo { version, download_url: url }))
-    } else {
-        Ok(None)
-    }
-}
-
-// 2. Führt den eigentlichen Flash-Vorgang durch
-#[tauri::command]
-async fn download_and_flash_firmware(app: AppHandle, download_url: String) -> Result<(), String> {
-    let _ = app.emit("fw-status", "Lade Firmware herunter...");
-
-    // 1. Herunterladen in ein Temp-Verzeichnis
-    let response = reqwest::get(&download_url).await.map_err(|e| e.to_string())?;
-    let bytes = response.bytes().await.map_err(|e| e.to_string())?;
-
-    let temp_dir = std::env::temp_dir();
-    let fw_path = temp_dir.join("update.uf2");
-    fs::write(&fw_path, bytes).map_err(|e| e.to_string())?;
-
-    let _ = app.emit("fw-status", "Warte auf Bootloader-Laufwerk...");
-
-    // 2. Warten, bis der Pico als Laufwerk "RPI-RP2" auftaucht (Max 15 Sekunden)
-    let mut disks = Disks::new();
-    let mut pico_mount_point: Option<PathBuf> = None;
-
-    for _ in 0..30 {
-        disks.refresh(true);
-        for disk in &disks {
-            if disk.name().to_string_lossy().contains("RPI-RP2") {
-                pico_mount_point = Some(disk.mount_point().to_path_buf());
-                break;
-            }
-        }
-
-        if pico_mount_point.is_some() {
-            break;
-        }
-        thread::sleep(Duration::from_millis(500));
-    }
-
-    let dest_dir = pico_mount_point.ok_or("Pico Laufwerk (RPI-RP2) wurde nicht gefunden. Ist der Bootloader aktiv?")?;
-    let dest_file = dest_dir.join("update.uf2");
-
-    let _ = app.emit("fw-status", "Kopiere Firmware auf den Pico...");
-
-    // 3. UF2 Datei kopieren (Das löst automatisch den Flash & Reboot des Picos aus)
-    fs::copy(&fw_path, &dest_file).map_err(|e| format!("Fehler beim Kopieren: {}", e))?;
-
-    // Aufräumen
-    let _ = fs::remove_file(fw_path);
-
-    Ok(())
-}
-
-#[tauri::command]
-fn update_monitor_mapping(state: State<AppState>, slot: u8, process_name: String) {
-    if slot < 4 {
-        let mut slots = state.monitor_slots.lock().unwrap();
-        slots[slot as usize] = if process_name.is_empty() { None } else { Some(process_name) };
-    }
 }

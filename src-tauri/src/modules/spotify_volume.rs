@@ -26,7 +26,7 @@ impl Action for SpotifyVolumeAction {
                 ..Default::default()
             };
 
-            let mut spotify = AuthCodeSpotify::with_config(creds, oauth, config);
+            let spotify = AuthCodeSpotify::with_config(creds, oauth, config);
 
             // Prüfen, ob wir einen Token im Cache haben
             match spotify.read_token_cache(false).await {
