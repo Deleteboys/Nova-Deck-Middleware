@@ -1,9 +1,9 @@
-use std::sync::{Arc, Mutex, mpsc};
+use crate::audio;
+use crate::protocol::HostToPico;
+use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 use tauri::Emitter; // WICHTIG: Erlaubt das Senden von Events ans Frontend
-use crate::protocol::HostToPico;
-use crate::audio;
 
 #[derive(serde::Serialize, Clone)]
 pub struct AudioUpdatePayload {
@@ -12,7 +12,11 @@ pub struct AudioUpdatePayload {
     pub muted: bool,
 }
 
-pub fn start_monitoring(app_handle: tauri::AppHandle, state: Arc<Mutex<[Option<String>; 4]>>, tx: mpsc::Sender<HostToPico>) {
+pub fn start_monitoring(
+    app_handle: tauri::AppHandle,
+    state: Arc<Mutex<[Option<String>; 4]>>,
+    tx: mpsc::Sender<HostToPico>,
+) {
     thread::spawn(move || {
         println!("Audio thread is running in the background.");
         let mut last_volumes = [255u8; 4];
@@ -27,41 +31,61 @@ pub fn start_monitoring(app_handle: tauri::AppHandle, state: Arc<Mutex<[Option<S
             for (i, slot_opt) in current_slots.iter().enumerate() {
                 let status_result = unsafe {
                     match slot_opt {
-                        Some(name) if name == "Windows Master Volume" => audio::get_master_status().map(Some),
-                        Some(name) if name == "Foreground Process" => audio::get_foreground_status(),
+                        Some(name) if name == "Windows Master Volume" => {
+                            audio::get_master_status().map(Some)
+                        }
+                        Some(name) if name == "Foreground Process" => {
+                            audio::get_foreground_status()
+                        }
                         Some(name) => audio::get_process_status(name),
                         None => Ok(None),
                     }
                 };
-
                 if let Ok(Some((vol_float, is_muted))) = status_result {
                     let vol_u8 = (vol_float * 100.0) as u8;
                     let slot_idx = i as u8;
                     let mut changed = false;
 
                     if vol_u8 != last_volumes[i] {
-                        let _ = tx.send(HostToPico::SetVolume { slot: slot_idx, volume: vol_u8 });
+                        let _ = tx.send(HostToPico::SetVolume {
+                            slot: slot_idx,
+                            volume: vol_u8,
+                        });
                         last_volumes[i] = vol_u8;
                         changed = true;
                     }
 
                     if is_muted != last_mutes[i] {
-                        let _ = tx.send(HostToPico::SetMuteState { index: slot_idx, mute: is_muted });
+                        let _ = tx.send(HostToPico::SetMuteState {
+                            index: slot_idx,
+                            mute: is_muted,
+                        });
                         last_mutes[i] = is_muted;
                         changed = true;
                     }
 
                     // HIER NEU: Sende die Änderung auch an das Frontend
                     if changed {
-                        let _ = app_handle.emit("audio-update", AudioUpdatePayload {
-                            slot: slot_idx,
-                            volume: last_volumes[i],
-                            muted: last_mutes[i],
+                        let _ = app_handle.emit(
+                            "audio-update",
+                            AudioUpdatePayload {
+                                slot: slot_idx,
+                                volume: last_volumes[i],
+                                muted: last_mutes[i],
+                            },
+                        );
+                    }
+                } else {
+                    if 255 != last_volumes[i] {
+                        let _ = tx.send(HostToPico::SetVolume {
+                            slot: i as u8,
+                            volume: 255,
                         });
+                        last_volumes[i] = 255;
                     }
                 }
             }
-            thread::sleep(Duration::from_millis(100));
+            thread::sleep(Duration::from_millis(150));
         }
     });
 }
