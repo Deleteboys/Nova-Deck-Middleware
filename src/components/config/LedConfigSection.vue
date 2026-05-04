@@ -1,6 +1,7 @@
 <template>
   <div class="led-config pa-4 d-flex flex-column fill-height">
 
+    <!-- Header (Original) -->
     <div class="mb-5">
       <div class="d-flex align-center text-caption text-primary uppercase tracking-widest font-weight-bold mb-1">
         <v-icon size="small" class="mr-2">mdi-led-variant</v-icon>
@@ -10,19 +11,20 @@
 
     <v-divider class="mb-5 border-opacity-25" color="white"></v-divider>
 
-    <div class="d-flex justify-space-between align-center mb-4">
-      <div class="text-body-2 text-grey font-weight-medium">Aktiver Effekt</div>
-
+    <!-- Aktiver Effekt (Gestapelt & an das rechte Panel angepasst) -->
+    <div class="mb-6">
+      <div class="text-body-2 text-grey font-weight-medium mb-2">Aktiver Effekt</div>
       <v-select
           v-model="store.ledConfig.effect"
           :items="EFFECT_LIST"
-          variant="plain"
+          variant="outlined"
           density="compact"
           hide-details
-          class="compact-effect-select"
+          bg-color="#18181b"
       ></v-select>
     </div>
 
+    <!-- Einstellungen (Originales Flat-Design) -->
     <div class="d-flex flex-column mb-8">
       <v-card color="#18181b" variant="flat" class="border border-zinc-800 rounded-lg overflow-hidden">
 
@@ -100,6 +102,7 @@
       </v-card>
     </div>
 
+    <!-- Speichern Button (Original) -->
     <v-fade-transition>
       <div v-if="store.hasUnsavedLedChanges" class="save-bar mt-auto">
         <v-btn
@@ -125,7 +128,6 @@ import { useStreamDeckStore } from '@/stores/streamdeck';
 
 const store = useStreamDeckStore();
 
-// --- State und Funktionen für das Inline-Editing ---
 const editingParam = ref<string | null>(null);
 
 const startEditing = (param: string) => {
@@ -139,7 +141,6 @@ const stopEditing = (param: string) => {
 
   editingParam.value = null;
 };
-// ---------------------------------------------------
 
 const EFFECT_PARAMS: Record<string, string[]> = {
   Solid: ['color', 'brightness'],
@@ -158,23 +159,6 @@ const EFFECT_LIST = Object.keys(EFFECT_PARAMS);
 </script>
 
 <style scoped>
-/* Angepasstes Effekt Dropdown */
-.compact-effect-select {
-  max-width: 150px;
-}
-.compact-effect-select :deep(.v-field__input) {
-  font-size: 0.875rem !important;
-  text-align: right;
-  color: #6366f1 !important; /* primary */
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-  min-height: 28px !important;
-}
-.compact-effect-select :deep(.v-field__append-inner) {
-  padding-top: 0 !important;
-  align-items: center;
-}
-
 /* V-Color-Picker Tweaks für Flat-Design */
 :deep(.v-color-picker) {
   background: transparent !important;
@@ -194,7 +178,7 @@ const EFFECT_LIST = Object.keys(EFFECT_PARAMS);
   z-index: 10;
 }
 
-/* --- INLINE EDITING STYLES (Identisch zum Config-Panel) --- */
+/* --- INLINE EDITING STYLES (Original) --- */
 .edit-trigger {
   cursor: pointer;
   padding: 2px 6px;
