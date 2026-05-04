@@ -18,6 +18,13 @@ impl ActionManager {
         self.mappings.insert(trigger, action);
     }
 
+    pub fn has_double_press(&self, id: u8) -> bool {
+        self.mappings.contains_key(&HardwareTrigger::Button {
+            id,
+            event: ButtonEvent::DoublePress,
+        })
+    }
+
     // Funktion, die aufgerufen wird, wenn ein Event passiert
     pub fn handle_trigger(&self, trigger: HardwareTrigger) {
         // 1. Suche nach exaktem Match (z.B. Button 1 -> LongPress)

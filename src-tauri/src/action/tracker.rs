@@ -8,8 +8,8 @@ const DOUBLE_PRESS_TIMEOUT_MS: u128 = 250;
 pub struct InputTracker {
     button_press_times: [Option<Instant>; 16],
     button_last_release: [Option<Instant>; 16],
+    double_click_enabled: [bool; 16],
     encoder_pushed: [bool; 4],
-    // NEU: Speichert, ob der Encoder bewegt wurde, während er gedrückt war
     encoder_moved_while_pushed: [bool; 4],
 }
 
@@ -18,8 +18,18 @@ impl InputTracker {
         Self {
             button_press_times: [None; 16],
             button_last_release: [None; 16],
+            double_click_enabled: [false; 16],
             encoder_pushed: [false; 4],
             encoder_moved_while_pushed: [false; 4],
+        }
+    }
+
+    pub fn set_double_click_enabled(&mut self, id: u8, enabled: bool) {
+        if (id as usize) < 16 {
+            self.double_click_enabled[id as usize] = enabled;
+            if !enabled {
+                self.button_last_release[id as usize] = None;
+            }
         }
     }
 
@@ -29,14 +39,16 @@ impl InputTracker {
                 let id_usize = id as usize;
                 if pressed {
                     self.button_press_times[id_usize] = Some(Instant::now());
-                    if let Some(last_release) = self.button_last_release[id_usize] {
-                        if last_release.elapsed().as_millis() < DOUBLE_PRESS_TIMEOUT_MS {
-                            self.button_press_times[id_usize] = None;
-                            self.button_last_release[id_usize] = None;
-                            return Some(HardwareTrigger::Button {
-                                id,
-                                event: ButtonEvent::DoublePress,
-                            });
+                    if self.double_click_enabled[id_usize] {
+                        if let Some(last_release) = self.button_last_release[id_usize] {
+                            if last_release.elapsed().as_millis() < DOUBLE_PRESS_TIMEOUT_MS {
+                                self.button_press_times[id_usize] = None;
+                                self.button_last_release[id_usize] = None;
+                                return Some(HardwareTrigger::Button {
+                                    id,
+                                    event: ButtonEvent::DoublePress,
+                                });
+                            }
                         }
                     }
                     None
@@ -44,18 +56,23 @@ impl InputTracker {
                     if let Some(press_time) = self.button_press_times[id_usize] {
                         let duration = press_time.elapsed().as_millis();
                         self.button_press_times[id_usize] = None;
-                        self.button_last_release[id_usize] = Some(Instant::now());
-
                         if duration >= LONG_PRESS_MS {
+                            self.button_last_release[id_usize] = None;
                             return Some(HardwareTrigger::Button {
                                 id,
                                 event: ButtonEvent::LongPress,
                             });
                         } else {
-                            return Some(HardwareTrigger::Button {
-                                id,
-                                event: ButtonEvent::ShortPress,
-                            });
+                            if self.double_click_enabled[id_usize] {
+                                self.button_last_release[id_usize] = Some(Instant::now());
+                                return None;
+                            } else {
+                                self.button_last_release[id_usize] = None;
+                                return Some(HardwareTrigger::Button {
+                                    id,
+                                    event: ButtonEvent::ShortPress,
+                                });
+                            }
                         }
                     }
                     None
@@ -66,13 +83,11 @@ impl InputTracker {
                 let idx = id as usize;
                 if pressed {
                     self.encoder_pushed[idx] = true;
-                    // Reset: Wenn neu gedrückt wird, gab es noch keine Bewegung
                     self.encoder_moved_while_pushed[idx] = false;
                     None
                 } else {
                     self.encoder_pushed[idx] = false;
 
-                    // NUR triggern, wenn in der Zwischenzeit NICHT gedreht wurde
                     if !self.encoder_moved_while_pushed[idx] {
                         return Some(HardwareTrigger::Encoder {
                             id,
@@ -88,7 +103,6 @@ impl InputTracker {
                 let is_pushed = self.encoder_pushed[idx];
 
                 if is_pushed {
-                    // Markieren, dass der Encoder während des Drückens bewegt wurde
                     self.encoder_moved_while_pushed[idx] = true;
                 }
 
@@ -103,5 +117,25 @@ impl InputTracker {
             }
             _ => None,
         }
+    }
+
+    pub fn update(&mut self) -> Option<HardwareTrigger> {
+        for id in 0..16 {
+            if self.double_click_enabled[id] {
+                if let Some(last_release) = self.button_last_release[id] {
+                    if last_release.elapsed().as_millis() >= DOUBLE_PRESS_TIMEOUT_MS
+                        && self.button_press_times[id].is_none()
+                    {
+                        self.button_last_release[id] = None;
+
+                        return Some(HardwareTrigger::Button {
+                            id: id as u8,
+                            event: ButtonEvent::ShortPress,
+                        });
+                    }
+                }
+            }
+        }
+        None
     }
 }

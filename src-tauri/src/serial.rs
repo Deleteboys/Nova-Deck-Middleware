@@ -103,8 +103,14 @@ pub fn start_serial_thread(
                                     let _ = app.emit("pico-version", version.as_str());
                                 }
 
+                                if let PicoToHost::ButtonChanged { id, .. } = &msg {
+                                    if let Ok(manager) = action_manager.lock() {
+                                        let expects_double_click = manager.has_double_press(*id);
+                                        tracker.set_double_click_enabled(*id, expects_double_click);
+                                    }
+                                }
+
                                 if let Some(logical_trigger) = tracker.process_event(msg) {
-                                    // Hier locken wir den Manager kurz, um die Aktion auszuführen
                                     if let Ok(manager) = action_manager.lock() {
                                         manager.handle_trigger(logical_trigger);
                                     }
@@ -136,6 +142,12 @@ pub fn start_serial_thread(
                     thread::sleep(Duration::from_millis(500));
                     continue;
                 }
+            }
+        }
+
+        if let Some(logical_trigger) = tracker.update() {
+            if let Ok(manager) = action_manager.lock() {
+                manager.handle_trigger(logical_trigger);
             }
         }
 
