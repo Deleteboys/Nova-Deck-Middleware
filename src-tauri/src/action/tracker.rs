@@ -9,6 +9,7 @@ pub struct InputTracker {
     button_press_times: [Option<Instant>; 16],
     button_last_release: [Option<Instant>; 16],
     double_click_enabled: [bool; 16],
+    long_press_notified: [bool; 16],
     encoder_pushed: [bool; 4],
     encoder_moved_while_pushed: [bool; 4],
 }
@@ -19,6 +20,7 @@ impl InputTracker {
             button_press_times: [None; 16],
             button_last_release: [None; 16],
             double_click_enabled: [false; 16],
+            long_press_notified: [false; 16],
             encoder_pushed: [false; 4],
             encoder_moved_while_pushed: [false; 4],
         }
@@ -58,6 +60,7 @@ impl InputTracker {
                         self.button_press_times[id_usize] = None;
                         if duration >= LONG_PRESS_MS {
                             self.button_last_release[id_usize] = None;
+                            self.long_press_notified[id_usize] = false;
                             return Some(HardwareTrigger::Button {
                                 id,
                                 event: ButtonEvent::LongPress,
@@ -133,6 +136,18 @@ impl InputTracker {
                             event: ButtonEvent::ShortPress,
                         });
                     }
+                }
+            }
+        }
+        None
+    }
+    
+    pub fn check_long_press_feedback(&mut self) -> Option<u8> {
+        for id in 0..16 {
+            if let Some(press_time) = self.button_press_times[id] {
+                if !self.long_press_notified[id] && press_time.elapsed().as_millis() >= LONG_PRESS_MS {
+                    self.long_press_notified[id] = true;
+                    return Some(id as u8);
                 }
             }
         }

@@ -7,7 +7,8 @@ use std::time::Duration;
 
 use crate::action::manager::ActionManager;
 use crate::action::tracker::InputTracker;
-use crate::protocol::{HostToPico, PicoToHost};
+use crate::commands::send_to_pico;
+use crate::protocol::{HostToPico, PicoToHost, VibrationPattern};
 use serialport::{available_ports, SerialPortType};
 use tauri::{AppHandle, Emitter};
 
@@ -143,6 +144,11 @@ pub fn start_serial_thread(
                     continue;
                 }
             }
+            if let Some(ready_id) = tracker.check_long_press_feedback() {
+                if let Err(e) = write_to_pico(port, &HostToPico::Vibrate { pattern: VibrationPattern::Medium }) {
+                    println!("Fehler beim Senden des Feedbacks: {}", e);
+                }
+            }
         }
 
         if let Some(logical_trigger) = tracker.update() {
@@ -155,6 +161,23 @@ pub fn start_serial_thread(
     }
 
     is_device_connected.store(false, Ordering::Relaxed);
+}
+
+fn write_to_pico(
+    port: &mut Box<dyn serialport::SerialPort>,
+    cmd: &HostToPico,
+) -> Result<(), std::io::Error> {
+    let mut buf = [0u8; 64];
+
+    // Serialisierung
+    let slice = postcard::to_slice(cmd, &mut buf)
+        .map_err(|e| std::io::Error::new(ErrorKind::InvalidData, e))?;
+
+    // Schreiben & Flushen
+    port.write_all(slice)?;
+    port.flush()?;
+
+    Ok(())
 }
 
 fn find_pico_port() -> Option<String> {
