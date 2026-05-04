@@ -14,7 +14,7 @@ impl Action for ToggleAppMediaAction {
 
         tauri::async_runtime::spawn(async move {
             let result: windows::core::Result<()> = async {
-                let target_app = name.to_lowercase();
+                let target_app = name.to_lowercase().replace(".exe", "");
 
                 let mut pending_operations = Vec::new();
                 {
