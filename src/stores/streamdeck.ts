@@ -229,6 +229,17 @@ export const useStreamDeckStore = defineStore('streamdeck', {
             this.persistState()
         },
 
+        updateElementIcon(id: string | null, icon: string) {
+            if (!id || !this.activeProfile) return
+
+            if (!this.activeProfile.keys[id]) {
+                this.activeProfile.keys[id] = {}
+            }
+
+            this.activeProfile.keys[id].icon = icon
+            this.persistState()
+        },
+
         updateElementAction(id: string | null, trigger: TriggerType, setup: ActionSetup) {
             if (!id || !this.activeProfile) return
 

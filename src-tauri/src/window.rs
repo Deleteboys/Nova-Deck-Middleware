@@ -115,7 +115,7 @@ pub fn show_or_create_main_window(app: &AppHandle) {
             "main",
             tauri::WebviewUrl::App("index.html".into()),
         )
-            .title("Nova Deck")
+        .title("Nova Deck")
         .build();
 
         if let Ok(window) = window {

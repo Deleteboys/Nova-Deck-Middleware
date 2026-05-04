@@ -1,6 +1,6 @@
 use windows::core::Interface;
-use windows::Win32::Media::Audio::*;
 use windows::Win32::Media::Audio::Endpoints::IAudioEndpointVolume;
+use windows::Win32::Media::Audio::*;
 use windows::Win32::System::Com::*;
 use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId};
 
@@ -75,7 +75,6 @@ pub unsafe fn toggle_mute_for_pids(target_pids: &[u32]) -> windows::core::Result
     Ok(())
 }
 
-
 pub unsafe fn get_master_volume() -> windows::core::Result<f32> {
     let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
 
@@ -131,7 +130,8 @@ pub unsafe fn get_process_status(name: &str) -> windows::core::Result<Option<(f3
     let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
     let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
     let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole)?;
-    let manager: IAudioSessionManager2 = device.Activate::<IAudioSessionManager2>(CLSCTX_ALL, None)?;
+    let manager: IAudioSessionManager2 =
+        device.Activate::<IAudioSessionManager2>(CLSCTX_ALL, None)?;
     let session_enumerator = manager.GetSessionEnumerator()?;
 
     for i in 0..session_enumerator.GetCount()? {
@@ -172,7 +172,8 @@ pub unsafe fn get_foreground_status() -> windows::core::Result<Option<(f32, bool
     // 2. Audio-Session für diese spezifische PID suchen
     let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
     let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole)?;
-    let manager: IAudioSessionManager2 = device.Activate::<IAudioSessionManager2>(CLSCTX_ALL, None)?;
+    let manager: IAudioSessionManager2 =
+        device.Activate::<IAudioSessionManager2>(CLSCTX_ALL, None)?;
     let session_enumerator = manager.GetSessionEnumerator()?;
 
     for i in 0..session_enumerator.GetCount()? {

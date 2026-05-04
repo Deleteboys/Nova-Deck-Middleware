@@ -1,7 +1,7 @@
-use crate::AppState;
 use crate::action::actions::{ButtonEvent, EncoderEvent, HardwareTrigger};
-use crate::protocol::{HostToPico, IconType};
 use crate::modules;
+use crate::protocol::{HostToPico, IconType};
+use crate::AppState;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -197,7 +197,9 @@ pub fn send_to_pico(state: State<AppState>, command: HostToPico) -> Result<(), S
 
 #[tauri::command]
 pub fn get_connection_status(state: State<AppState>) -> bool {
-    state.is_device_connected.load(std::sync::atomic::Ordering::Relaxed)
+    state
+        .is_device_connected
+        .load(std::sync::atomic::Ordering::Relaxed)
 }
 
 #[tauri::command]
@@ -252,7 +254,10 @@ pub fn sync_mappings(state: State<AppState>, mappings: Vec<MappingPayload>) -> R
 #[tauri::command]
 pub fn set_icon_slot(state: State<AppState>, slot: u8, icon: String) -> Result<(), String> {
     let icon_enum = parse_icon(&icon);
-    let command = HostToPico::SetIconSlot { slot, icon: icon_enum };
+    let command = HostToPico::SetIconSlot {
+        slot,
+        icon: icon_enum,
+    };
 
     let tx_guard = state.serial_tx.lock().unwrap();
     if let Some(tx) = tx_guard.as_ref() {
@@ -296,25 +301,36 @@ pub async fn check_firmware_update() -> Result<Option<FirmwareUpdateInfo>, Strin
     let json: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
     let version = json["tag_name"].as_str().unwrap_or("").to_string();
 
-    let download_url = json["assets"].as_array()
+    let download_url = json["assets"]
+        .as_array()
         .and_then(|assets| {
-            assets.iter().find(|a| a["name"].as_str().unwrap_or("").ends_with(".uf2"))
+            assets
+                .iter()
+                .find(|a| a["name"].as_str().unwrap_or("").ends_with(".uf2"))
         })
         .and_then(|asset| asset["browser_download_url"].as_str())
         .map(|s| s.to_string());
 
     if let Some(url) = download_url {
-        Ok(Some(FirmwareUpdateInfo { version, download_url: url }))
+        Ok(Some(FirmwareUpdateInfo {
+            version,
+            download_url: url,
+        }))
     } else {
         Ok(None)
     }
 }
 
 #[tauri::command]
-pub async fn download_and_flash_firmware(app: AppHandle, download_url: String) -> Result<(), String> {
+pub async fn download_and_flash_firmware(
+    app: AppHandle,
+    download_url: String,
+) -> Result<(), String> {
     let _ = app.emit("fw-status", "Lade Firmware herunter...");
 
-    let response = reqwest::get(&download_url).await.map_err(|e| e.to_string())?;
+    let response = reqwest::get(&download_url)
+        .await
+        .map_err(|e| e.to_string())?;
     let bytes = response.bytes().await.map_err(|e| e.to_string())?;
 
     let temp_dir = std::env::temp_dir();
@@ -334,7 +350,9 @@ pub async fn download_and_flash_firmware(app: AppHandle, download_url: String) -
                 break;
             }
         }
-        if pico_mount_point.is_some() { break; }
+        if pico_mount_point.is_some() {
+            break;
+        }
         thread::sleep(Duration::from_millis(500));
     }
 
@@ -352,16 +370,26 @@ pub async fn download_and_flash_firmware(app: AppHandle, download_url: String) -
 pub fn update_monitor_mapping(state: State<AppState>, slot: u8, process_name: String) {
     if slot < 4 {
         let mut slots = state.monitor_slots.lock().unwrap();
-        slots[slot as usize] = if process_name.is_empty() { None } else { Some(process_name) };
+        slots[slot as usize] = if process_name.is_empty() {
+            None
+        } else {
+            Some(process_name)
+        };
     }
 }
 
 #[tauri::command]
 pub fn set_start_minimized(app: AppHandle, value: bool) {
     if let Some(_window) = app.get_webview_window("main") {
-        let mut state = crate::window::load_window_state(&app).unwrap_or(crate::window::PersistedWindowState {
-            x: 100, y: 100, width: 800, height: 600, maximized: false, start_minimized: value
-        });
+        let mut state =
+            crate::window::load_window_state(&app).unwrap_or(crate::window::PersistedWindowState {
+                x: 100,
+                y: 100,
+                width: 800,
+                height: 600,
+                maximized: false,
+                start_minimized: value,
+            });
         state.start_minimized = value;
 
         if let Some(path) = crate::window::window_state_path(&app) {
@@ -374,5 +402,7 @@ pub fn set_start_minimized(app: AppHandle, value: bool) {
 
 #[tauri::command]
 pub fn get_start_minimized(app: AppHandle) -> bool {
-    crate::window::load_window_state(&app).map(|s| s.start_minimized).unwrap_or(false)
+    crate::window::load_window_state(&app)
+        .map(|s| s.start_minimized)
+        .unwrap_or(false)
 }

@@ -4,11 +4,14 @@
 
       <section v-if="store.selectedElementId" class="mb-6">
 
+        <!-- Direkt die Computed Properties und direkte Update-Funktionen nutzen -->
         <ConfigHeader
             :element-id="store.selectedElementId"
             :is-oled="isOledDisplay"
-            v-model:label="buttonLabel"
-            @save="saveChanges"
+            :label="currentLabel"
+            :icon="currentIcon"
+            @update:label="updateLabel"
+            @update:icon="updateIcon"
         />
 
         <v-divider class="mb-5 border-opacity-25" color="white"></v-divider>
@@ -28,46 +31,43 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed } from 'vue';
 import { useStreamDeckStore } from '@/stores/streamdeck';
 
-// Unterkomponenten importieren
 import ConfigHeader from './ConfigPanel/ConfigHeader.vue';
 import OledSettings from './ConfigPanel/OledSettings.vue';
 import ActionBindings from './ConfigPanel/ActionBindings.vue';
 
 const store = useStreamDeckStore();
-const buttonLabel = ref('');
 
 const isOledDisplay = computed(() => store.selectedElementId === 'oled-display');
 
-// Synchronisation des Labels bei Auswahl eines neuen Elements
-watch(() => store.selectedElementId, (newId) => {
-  if (newId) {
-    buttonLabel.value = store.activeProfile?.keys[newId]?.label || '';
-  }
-}, { immediate: true });
+const currentLabel = computed(() => {
+  const id = store.selectedElementId;
+  return id ? store.activeProfile?.keys[id]?.label || '' : '';
+});
 
-const saveChanges = () => {
+const currentIcon = computed(() => {
+  const id = store.selectedElementId;
+  return id ? store.activeProfile?.keys[id]?.icon || '' : '';
+});
+
+const updateLabel = (val: string) => {
   if (store.selectedElementId && !isOledDisplay.value) {
-    store.updateElementLabel(store.selectedElementId, buttonLabel.value);
+    store.updateElementLabel(store.selectedElementId, val);
+  }
+};
+
+const updateIcon = (val: string) => {
+  if (store.selectedElementId && store.activeProfile?.keys[store.selectedElementId]) {
+    store.updateElementIcon(store.selectedElementId, val);
   }
 };
 </script>
 
 <style scoped>
-/* Layout & Scrollbar Styles */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
 </style>

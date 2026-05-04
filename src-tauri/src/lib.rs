@@ -1,20 +1,24 @@
 pub mod action;
 mod audio;
+mod commands;
 mod modules;
+mod monitor;
 mod protocol;
 mod serial;
-mod monitor;
-mod commands;
 mod window;
 
 use crate::action::manager::ActionManager;
-use crate::protocol::{HostToPico};
-use serde::{Serialize};
-use std::sync::atomic::{AtomicBool};
+use crate::protocol::HostToPico;
+use serde::Serialize;
+use std::sync::atomic::AtomicBool;
 use std::sync::Mutex;
 use std::sync::{mpsc, Arc};
 use std::thread;
-use tauri::{menu::{Menu, MenuItem}, tray::{TrayIconBuilder, TrayIconEvent}, Emitter, Manager, RunEvent, WindowEvent};
+use tauri::{
+    menu::{Menu, MenuItem},
+    tray::{TrayIconBuilder, TrayIconEvent},
+    Emitter, Manager, RunEvent, WindowEvent,
+};
 use tauri_plugin_autostart::MacosLauncher;
 
 #[derive(serde::Serialize)]
@@ -45,8 +49,12 @@ pub fn run() {
     let tx_for_monitor = tx.clone();
 
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec!["--autostart"])))
+        .plugin(tauri_plugin_autostart::init(
+            MacosLauncher::LaunchAgent,
+            Some(vec!["--autostart"]),
+        ))
         .manage(AppState {
             serial_tx: Mutex::new(Some(tx)),
             is_quitting: Mutex::new(false),
