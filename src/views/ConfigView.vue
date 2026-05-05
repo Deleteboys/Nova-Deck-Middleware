@@ -34,7 +34,8 @@ import ConfigPanel from '@/components/config/ConfigPanel.vue'
 
 /* Feste Breiten verhindern, dass das Grid verrutscht */
 .sidebar {
-  width: 20%;
+  width: 30%;
+  max-width: 500px;
   min-width: 250px;
   flex-shrink: 0;
 }
@@ -45,8 +46,9 @@ import ConfigPanel from '@/components/config/ConfigPanel.vue'
 }
 
 .right-panel {
-  width: 20%;
-  min-width: 320px;
+  width: 30%;
+  max-width: 500px;
+  min-width: 250px;
   flex-shrink: 0;
 }
 

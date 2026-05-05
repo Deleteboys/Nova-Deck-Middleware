@@ -3,7 +3,7 @@
     <div class="d-flex justify-space-between align-center mb-4">
       <div class="text-body-2 text-grey font-weight-medium">Zugeordnete Aktionen</div>
 
-      <v-menu location="bottom end">
+      <v-menu location="bottom end" :close-on-content-click="false">
         <template v-slot:activator="{ props }">
           <v-btn
               v-bind="props"
@@ -16,19 +16,44 @@
             Aktion hinzufügen
           </v-btn>
         </template>
-        <v-list bg-color="#18181b" class="border border-zinc-700 rounded-lg mt-1" density="compact">
-          <v-list-item
-              v-for="a in actionsLibrary"
-              :key="a.title"
-              :prepend-icon="a.icon"
-              :title="a.title"
-              class="action-menu-item text-body-2"
-              @click="assignAction(a)"
-          ></v-list-item>
+
+        <v-list
+            bg-color="#18181b"
+            class="border border-zinc-700 rounded-lg mt-1"
+            density="compact"
+            width="350"
+        >
+          <!-- Wir loopen über die Kategorien -->
+          <v-list-group
+              v-for="cat in categorizedActions"
+              :key="cat.name"
+              :value="cat.name"
+              color="primary"
+          >
+            <template v-slot:activator="{ props }">
+              <v-list-item
+                  v-bind="props"
+                  :prepend-icon="cat.icon"
+                  :title="cat.name"
+                  class="text-body-2 font-weight-bold"
+              ></v-list-item>
+            </template>
+
+            <!-- Die eigentlichen Aktionen innerhalb der Kategorie -->
+            <v-list-item
+                v-for="a in cat.items"
+                :key="a.title"
+                :prepend-icon="a.icon"
+                :title="a.title"
+                class="action-menu-item text-caption pl-8"
+                @click="assignAction(a)"
+            ></v-list-item>
+          </v-list-group>
         </v-list>
       </v-menu>
     </div>
 
+    <!-- ... restlicher Template Code (v-if boundActionsList etc.) bleibt identisch ... -->
     <div
         v-if="boundActionsList.length === 0"
         class="pa-6 border-dashed rounded-lg border-zinc-700 text-center text-grey mb-6 bg-zinc-800 bg-opacity-30"
@@ -80,142 +105,46 @@
 
         <div class="px-4 py-3" v-if="item.hasSettings">
 
-          <!-- Tastenkombination -->
-          <div v-if="item.hasKey" class="d-flex align-center justify-space-between">
-            <div class="text-body-2 text-grey">Tastenkombination</div>
-            <v-select
-                :model-value="item.key"
-                :items="fKeys"
-                variant="underlined"
-                density="compact"
-                hide-details
-                class="compact-key-select"
-                @update:model-value="(val) => updateActionKey(item.triggerValue, val)"
-            ></v-select>
-          </div>
+          <ActionSettingsKey
+              v-if="item.hasKey"
+              :action-key="item.key"
+              :keys-list="fKeys"
+              @update:action-key="(val) => updateActionKey(item.triggerValue, val)"
+          />
 
-          <!-- Media Tasten -->
-          <div v-if="item.hasMediaKey" class="d-flex align-center justify-space-between">
-            <div class="text-body-2 text-grey">Media Funktion</div>
-            <v-select
-                :model-value="item.key"
-                :items="mediaKeys"
-                item-title="title"
-                item-value="value"
-                variant="underlined"
-                density="compact"
-                hide-details
-                class="compact-key-select"
-                style="max-width: 140px;"
-                @update:model-value="(val) => updateActionKey(item.triggerValue, val)"
-            ></v-select>
-          </div>
+          <ActionSettingsMedia
+              v-if="item.hasMediaKey"
+              :action-key="item.key"
+              :media-keys="mediaKeys"
+              @update:action-key="(val) => updateActionKey(item.triggerValue, val)"
+          />
 
-          <!-- Lautstärke Intervalle -->
-          <div v-if="item.hasStep">
-            <div class="d-flex justify-space-between align-center mb-1">
-              <div class="text-body-2 text-grey">Intervall</div>
-              <span
-                  v-if="editingStepTrigger !== item.triggerValue"
-                  class="text-body-2 text-white font-weight-bold edit-trigger"
-                  title="Klicken zur direkten Eingabe"
-                  @click="startEditingStep(item.triggerValue)"
-              >
-                {{ item.step > 0 ? '+' : '' }}{{ item.step }}%
-              </span>
-              <div v-else class="inline-input-wrapper">
-                <v-text-field
-                    :model-value="item.step"
-                    type="number"
-                    density="compact"
-                    variant="underlined"
-                    hide-details
-                    autofocus
-                    color="primary"
-                    @update:model-value="(val) => updateActionStep(item.triggerValue, Number(val))"
-                    @blur="stopEditingStep"
-                    @keyup.enter="stopEditingStep"
-                ></v-text-field>
-              </div>
-            </div>
-            <v-slider
-                :model-value="item.step"
-                :min="-50"
-                :max="50"
-                :step="1"
-                hide-details
-                color="primary"
-                track-color="zinc-700"
-                @update:model-value="(val) => updateActionStep(item.triggerValue, val)"
-            ></v-slider>
-          </div>
+          <ActionSettingsVolume
+              v-if="item.hasStep"
+              :step="item.step || 0"
+              @update:step="(val) => updateActionStep(item.triggerValue, val)"
+          />
 
-          <!-- Prozess Auswahl -->
-          <div v-if="item.needsProcess" class="mt-1">
-            <div class="d-flex justify-space-between align-center mb-1">
-              <div class="text-body-2 text-grey">Programm</div>
-              <v-btn icon="mdi-refresh" variant="text" size="x-small" color="grey" @click="fetchProcesses"></v-btn>
-            </div>
-            <v-autocomplete
-                :model-value="item.process_name"
-                :items="activeProcesses"
-                variant="underlined"
-                density="compact"
-                hide-details
-                placeholder="Prozess wählen..."
-                class="text-white"
-                @update:model-value="(val) => updateActionProcess(item.triggerValue, val)"
-            ></v-autocomplete>
-          </div>
+          <ActionSettingsProcess
+              v-if="item.needsProcess"
+              :process-name="item.process_name"
+              :processes="activeProcesses"
+              @update:process-name="(val) => updateActionProcess(item.triggerValue, val)"
+              @refresh="fetchProcesses"
+          />
 
-          <!-- Switch Audio Device (Design angepasst) -->
-          <div v-if="item.isAudioToggle" class="d-flex flex-column gap-2 mt-1">
-            <div class="d-flex align-center justify-space-between mb-1">
-              <div class="text-body-2 text-grey">Audiogeräte</div>
-              <v-btn icon="mdi-refresh" variant="text" size="x-small" color="grey" @click="fetchAudioDevices"></v-btn>
-            </div>
+          <ActionSettingsAudio
+              v-if="item.isAudioToggle"
+              :device1="item.device1"
+              :device2="item.device2"
+              :audio-devices="audioDevices"
+              @update:device1="(val) => updateActionAudioDevices(item.triggerValue, val, item.device2 || '')"
+              @update:device2="(val) => updateActionAudioDevices(item.triggerValue, item.device1 || '', val)"
+              @refresh="fetchAudioDevices"
+          />
 
-            <div class="d-flex align-center justify-space-between">
-              <div class="text-caption text-grey">Gerät 1</div>
-              <v-select
-                  :model-value="item.device1"
-                  :items="audioDevices"
-                  item-title="name"
-                  item-value="name"
-                  variant="underlined"
-                  density="compact"
-                  hide-details
-                  class="compact-key-select"
-                  style="max-width: 180px;"
-                  @update:model-value="(val) => updateActionAudioDevices(item.triggerValue, val, item.device2)"
-              ></v-select>
-            </div>
-
-            <div class="d-flex align-center justify-space-between">
-              <div class="text-caption text-grey">Gerät 2</div>
-              <v-select
-                  :model-value="item.device2"
-                  :items="audioDevices"
-                  item-title="name"
-                  item-value="name"
-                  variant="underlined"
-                  density="compact"
-                  hide-details
-                  class="compact-key-select"
-                  style="max-width: 180px;"
-                  @update:model-value="(val) => updateActionAudioDevices(item.triggerValue, item.device1, val)"
-              ></v-select>
-            </div>
-          </div>
         </div>
-
-        <div class="px-3 py-2 bg-zinc-800 bg-opacity-30 d-flex align-center justify-center" v-else>
-          <v-icon icon="mdi-information-outline" size="x-small" color="grey" class="mr-2"></v-icon>
-          <div class="text-caption text-grey font-italic" style="opacity: 0.6;">
-            Keine weiteren Einstellungen erforderlich
-          </div>
-        </div>
-
+        <ActionSettingsInfo v-else />
       </v-card>
     </div>
   </div>
@@ -233,10 +162,15 @@ import {
   type AudioDeviceInfo
 } from '@/services/streamdeckCommands';
 
+import ActionSettingsKey from './ActionSettings/ActionSettingsKey.vue';
+import ActionSettingsMedia from './ActionSettings/ActionSettingsMedia.vue';
+import ActionSettingsVolume from './ActionSettings/ActionSettingsVolume.vue';
+import ActionSettingsProcess from './ActionSettings/ActionSettingsProcess.vue';
+import ActionSettingsAudio from './ActionSettings/ActionSettingsAudio.vue';
+import ActionSettingsInfo from './ActionSettings/ActionSettingsInfo.vue';
+
 const store = useStreamDeckStore();
 
-// --- STATE ---
-const editingStepTrigger = ref<TriggerType | null>(null);
 const activeProcesses = ref<string[]>([]);
 const audioDevices = ref<AudioDeviceInfo[]>([]);
 const fKeys = Array.from({ length: 12 }, (_, i) => `F${i + 13}`);
@@ -248,24 +182,48 @@ const mediaKeys = [
   { title: 'Mute', value: 'MEDIAMUTE' }
 ];
 
+// Die neue strukturierte Library
+const categorizedActions = [
+  {
+    name: 'System & Audio',
+    icon: 'mdi-monitor-speaker',
+    items: [
+      { title: 'Master Volume', icon: 'mdi-volume-high', config: { type: 'MasterVolume', step: 5 } },
+      { title: 'Global Mute (Toggle)', icon: 'mdi-volume-mute', config: { type: 'ToggleMasterMute' } },
+      { title: 'Switch Audio Device', icon: 'mdi-swap-horizontal', config: { type: 'SwitchAudioDevice', device1: '', device2: '' } },
+      { title: 'Taste drücken', icon: 'mdi-keyboard', config: { type: 'PressKey', key: 'F13' } },
+    ]
+  },
+  {
+    name: 'App Steuerung',
+    icon: 'mdi-application-cog',
+    items: [
+      { title: 'App Audio (Volume)', icon: 'mdi-volume-plus', config: { type: 'AppVolume', process_name: '', step: 5 } },
+      { title: 'App Audio (Toggle)', icon: 'mdi-volume-off', config: { type: 'ToggleAppAudio', process_name: '' } },
+      { title: 'App Media (Play/Pause)', icon: 'mdi-play-pause', config: { type: 'ToggleAppMedia', process_name: '' } },
+    ]
+  },
+  {
+    name: 'Fokus Fenster',
+    icon: 'mdi-window-maximize',
+    items: [
+      { title: 'Current Window (Volume)', icon: 'mdi-monitor-speaker', config: { type: 'ForegroundVolume', step: 5 } },
+      { title: 'Aktuelles Fenster (Toggle)', icon: 'mdi-speaker-off', config: { type: 'ToggleForegroundAudio' } },
+    ]
+  },
+  {
+    name: 'Streaming & Media',
+    icon: 'mdi-play-network',
+    items: [
+      { title: 'Media Control', icon: 'mdi-play-pause', config: { type: 'MediaControl', key: 'MEDIAPLAYPAUSE' } },
+      // { title: 'Spotify Volume', icon: 'mdi-spotify', config: { type: 'SpotifyVolume', step: 5 } },
+    ]
+  }
+];
+
 const ENCODER_ORDER: TriggerType[] = ['TurnRight', 'TurnLeft', 'PushTurnRight', 'PushTurnLeft', 'PushPress'];
 const BUTTON_ORDER: TriggerType[] = ['ShortPress', 'DoublePress', 'LongPress'];
 
-const actionsLibrary = [
-  { title: 'Taste drücken', icon: 'mdi-keyboard', config: { type: 'PressKey', key: 'F13' } },
-  { title: 'Media Control', icon: 'mdi-play-pause', config: { type: 'MediaControl', key: 'MEDIAPLAYPAUSE' } },
-  { title: 'Spotify Volume', icon: 'mdi-spotify', config: { type: 'SpotifyVolume', step: 5 } },
-  { title: 'Master Volume', icon: 'mdi-volume-high', config: { type: 'MasterVolume', step: 5 } },
-  { title: 'Switch Audio Device', icon: 'mdi-swap-horizontal', config: { type: 'SwitchAudioDevice', device1: '', device2: '' } },
-  { title: 'App Audio (Volume)', icon: 'mdi-volume-plus', config: { type: 'AppVolume', process_name: '', step: 5 } },
-  { title: 'App Audio (Toggle)', icon: 'mdi-volume-off', config: { type: 'ToggleAppAudio', process_name: '' } },
-  { title: 'Global Mute (Toggle)', icon: 'mdi-volume-mute', config: { type: 'ToggleMasterMute' } },
-  { title: 'Current Window (Volume)', icon: 'mdi-monitor-speaker', config: { type: 'ForegroundVolume', step: 5 } },
-  { title: 'Aktuelles Fenster (Toggle)', icon: 'mdi-speaker-off', config: { type: 'ToggleForegroundAudio' } },
-  { title: 'App Media (Play/Pause)', icon: 'mdi-play-pause', config: { type: 'ToggleAppMedia', process_name: '' } }
-];
-
-// --- COMPUTED ---
 const triggerOptions = computed(() => {
   if (store.selectedElementId?.startsWith('enc-')) {
     return [
@@ -320,30 +278,16 @@ const boundActionsList = computed(() => {
   const isEncoder = store.selectedElementId.startsWith('enc-');
   const order = isEncoder ? ENCODER_ORDER : BUTTON_ORDER;
 
-  return list.sort((a, b) => {
-    return order.indexOf(a.triggerValue) - order.indexOf(b.triggerValue);
-  });
+  return list.sort((a, b) => order.indexOf(a.triggerValue) - order.indexOf(b.triggerValue));
 });
 
-// --- METHODS ---
 const fetchProcesses = async () => {
-  try {
-    activeProcesses.value = await getActiveProcesses();
-  } catch (error) {
-    console.error("Prozesse konnten nicht geladen werden:", error);
-  }
+  try { activeProcesses.value = await getActiveProcesses(); } catch (e) { console.error(e); }
 };
 
 const fetchAudioDevices = async () => {
-  try {
-    audioDevices.value = await getAudioDevices();
-  } catch (error) {
-    console.error("Audiogeräte konnten nicht geladen werden:", error);
-  }
+  try { audioDevices.value = await getAudioDevices(); } catch (e) { console.error(e); }
 };
-
-const startEditingStep = (trigger: TriggerType) => { editingStepTrigger.value = trigger; };
-const stopEditingStep = () => { editingStepTrigger.value = null; };
 
 const assignAction = async (action: any) => {
   if (!store.selectedElementId) return;
@@ -433,61 +377,21 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.gap-2 { gap: 8px; }
 .gap-3 { gap: 12px; }
-
 .text-help { cursor: help; }
-
 .compact-trigger-select { width: 120px; }
 .compact-trigger-select :deep(.v-field__input) {
   font-size: 0.8rem !important;
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
   min-height: 28px !important;
   color: #a1a1aa !important;
 }
-.compact-trigger-select :deep(.v-field__append-inner) { padding-top: 0 !important; align-items: center; }
-
-.compact-key-select {
-  max-width: 140px;
-}
-.compact-key-select :deep(.v-field__input) {
-  font-size: 0.875rem !important;
-  text-align: right;
-  color: #6366f1 !important;
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-}
-
 .action-menu-item:hover {
   background: rgba(99, 102, 241, 0.1) !important;
   color: #6366f1 !important;
 }
-
 .hover-error:hover {
   color: #ef4444 !important;
   background: rgba(239, 68, 68, 0.1);
   border-radius: 50%;
-}
-
-.edit-trigger {
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.03);
-  transition: all 0.2s;
-}
-.edit-trigger:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #6366f1 !important;
-}
-
-.inline-input-wrapper { width: 55px; margin-top: -6px; }
-.inline-input-wrapper :deep(input) {
-  text-align: right;
-  font-size: 0.875rem !important;
-  font-weight: bold;
-  color: white !important;
-  padding-bottom: 2px !important;
 }
 </style>
