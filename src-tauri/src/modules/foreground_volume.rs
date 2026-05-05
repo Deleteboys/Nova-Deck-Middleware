@@ -2,6 +2,7 @@ use crate::action::actions::Action;
 use crate::audio::adjust_volume_for_pids;
 use crate::protocol::{HostToPico, VibrationPattern};
 use std::sync::mpsc;
+use log::error;
 use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId};
 
 #[derive(Debug, Clone)]
@@ -32,7 +33,7 @@ impl Action for ForegroundVolumeAction {
                                 pattern: VibrationPattern::Medium,
                             });
                         }
-                        Err(_e) => println!("Vordergrund-Lautstärke angepasst (PID: {})", pid),
+                        Err(_e) => error!("Vordergrund-Lautstärke angepasst (PID: {})", pid),
                         _ => {} // Nichts tun, wenn das Limit nicht erreicht wurde
                     }
                 }

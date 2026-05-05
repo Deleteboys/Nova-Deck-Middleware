@@ -1,7 +1,9 @@
 use windows::core::Interface;
+use windows::Win32::Devices::FunctionDiscovery::PKEY_Device_FriendlyName;
 use windows::Win32::Media::Audio::Endpoints::IAudioEndpointVolume;
 use windows::Win32::Media::Audio::*;
 use windows::Win32::System::Com::*;
+use windows::Win32::UI::Shell::PropertiesSystem::IPropertyStore;
 use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId};
 
 pub unsafe fn adjust_volume_for_pids(target_pids: &[u32], step: i8) -> windows::core::Result<bool> {
@@ -192,4 +194,34 @@ pub unsafe fn get_foreground_status() -> windows::core::Result<Option<(f32, bool
         }
     }
     Ok(None)
+}
+
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct AudioDeviceInfo {
+    pub id: String,
+    pub name: String,
+}
+
+pub unsafe fn list_audio_devices() -> windows::core::Result<Vec<AudioDeviceInfo>> {
+    let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+    let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
+
+    let collection = enumerator.EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE)?;
+    let count = collection.GetCount()?;
+
+    let mut devices = Vec::with_capacity(count as usize);
+
+    for i in 0..count {
+        let device = collection.Item(i)?;
+        let id = device.GetId()?.to_string()?;
+
+        let store: IPropertyStore = device.OpenPropertyStore(STGM_READ)?;
+        let prop = store.GetValue(&PKEY_Device_FriendlyName)?;
+        let name = prop.Anonymous.Anonymous.Anonymous.pwszVal.to_string()?;
+
+        devices.push(AudioDeviceInfo { id, name });
+    }
+
+    Ok(devices)
 }

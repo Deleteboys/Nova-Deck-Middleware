@@ -12,17 +12,22 @@ export type TriggerType =
     | 'PushTurnRight'
     | 'PushPress';
 
+export type AudioDeviceInfo = {
+    id: string;
+    name: string;
+};
+
 export type ActionConfig =
     | { type: 'PressKey'; key: string }
     | { type: 'MediaControl'; key: string }
     | { type: 'SpotifyVolume'; step: number }
-    | { type: 'ToggleAudio'; device1: string; device2: string }
     | { type: 'MasterVolume'; step: number }
     | { type: 'ToggleAppAudio'; process_name: string }
     | { type: 'ToggleMasterMute' }
     | { type: 'AppVolume'; process_name: string; step: number;  }
     | { type: 'ForegroundVolume'; step: number; }
-    | { type: 'ToggleForegroundAudio' };
+    | { type: 'ToggleForegroundAudio' }
+    | { type: 'SwitchAudioDevice'; device1: string; device2: string };
 
 export type FirmwareUpdateInfo = {
     version: string;
@@ -307,4 +312,13 @@ export async function setStartMinimized(value: boolean): Promise<void> {
 
 export async function getStartMinimized(): Promise<boolean> {
     return await invoke("get_start_minimized");
+}
+
+export async function getAudioDevices(): Promise<AudioDeviceInfo[]> {
+    try {
+        return await invoke<AudioDeviceInfo[]>("get_audio_output_devices");
+    } catch (error) {
+        console.error("Fehler beim Abrufen der Audiogeräte:", error);
+        return [];
+    }
 }

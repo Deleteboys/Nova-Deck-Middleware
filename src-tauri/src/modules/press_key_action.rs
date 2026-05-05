@@ -1,6 +1,7 @@
 use crate::action::actions::Action;
 use enigo::Direction::Click;
 use enigo::{Enigo, Key, Keyboard, Settings};
+use log::debug;
 
 #[derive(Debug)]
 pub struct PressKeyAction {
@@ -11,6 +12,6 @@ impl Action for PressKeyAction {
     fn execute(&self) {
         let mut enigo = Enigo::new(&Settings::default()).unwrap();
         let _ = enigo.key(self.key.clone(), Click);
-        println!("Taste {:?} gedrückt!", self.key);
+        debug!("Taste {:?} gedrückt!", self.key);
     }
 }

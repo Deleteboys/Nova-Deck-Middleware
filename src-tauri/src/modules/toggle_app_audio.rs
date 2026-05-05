@@ -1,7 +1,8 @@
 use crate::action::actions::Action;
 use crate::audio::toggle_mute_for_pids;
 use std::fmt::Debug;
-use sysinfo::{ProcessesToUpdate, System}; // <-- Import der zentralen Funktion
+use log::error;
+use sysinfo::{ProcessesToUpdate, System};
 
 #[derive(Debug, Clone)]
 pub struct ToggleAppAudioAction {
@@ -25,9 +26,9 @@ impl Action for ToggleAppAudioAction {
 
             unsafe {
                 if let Err(e) = toggle_mute_for_pids(&target_pids) {
-                    println!("Fehler beim Toggeln von {}: {}", name, e);
+                    error!("Fehler beim Toggeln von {}: {}", name, e);
                 } else {
-                    println!("Audio-Status für {} getoggelt.", name);
+                    error!("Audio-Status für {} getoggelt.", name);
                 }
             }
         });

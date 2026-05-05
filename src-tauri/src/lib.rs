@@ -89,7 +89,8 @@ pub fn run() {
             commands::set_icon_slot,
             commands::update_monitor_mapping,
             commands::set_start_minimized,
-            commands::get_start_minimized
+            commands::get_start_minimized,
+            commands::get_audio_output_devices
         ])
         .setup(move |app| {
             // --- TRAY MENU SETUP ---

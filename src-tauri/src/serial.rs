@@ -4,7 +4,7 @@ use std::sync::mpsc::TryRecvError;
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::Duration;
-
+use log::{error, info};
 use crate::action::manager::ActionManager;
 use crate::action::tracker::InputTracker;
 use crate::commands::send_to_pico;
@@ -38,14 +38,14 @@ pub fn start_serial_thread(
                         thread::sleep(Duration::from_millis(500));
                         port.clear(serialport::ClearBuffer::All).ok();
 
-                        println!("Serial service connected on {}", port_name);
+                        info!("Serial service connected on {}", port_name);
                         is_device_connected.store(true, Ordering::Relaxed);
                         let _ = app.emit("pico-connection", true);
 
                         let mut buf = [0u8; 64];
                         if let Ok(slice) = postcard::to_slice(&HostToPico::GetConfig, &mut buf) {
                             if let Err(e) = port.write_all(slice).and_then(|_| port.flush()) {
-                                println!("Initial config request failed: {}", e);
+                                error!("Initial config request failed: {}", e);
                             }
                         }
                         if let Ok(slice) = postcard::to_slice(&HostToPico::GetVersion, &mut buf) {
@@ -57,7 +57,7 @@ pub fn start_serial_thread(
                         accumulator.clear();
                     }
                     Err(e) => {
-                        println!("Failed to open port {}: {}", port_name, e);
+                        error!("Failed to open port {}: {}", port_name, e);
                         thread::sleep(Duration::from_millis(1000));
                         continue;
                     }
@@ -74,7 +74,7 @@ pub fn start_serial_thread(
                     let mut buf = [0u8; 64];
                     if let Ok(slice) = postcard::to_slice(&cmd, &mut buf) {
                         if let Err(e) = port.write_all(slice).and_then(|_| port.flush()) {
-                            println!("Send error: {}", e);
+                            error!("Send error: {}", e);
                             is_device_connected.store(false, Ordering::Relaxed);
                             let _ = app.emit("pico-connection", false);
                             current_port = None;
@@ -87,7 +87,7 @@ pub fn start_serial_thread(
                 }
                 Err(TryRecvError::Empty) => {}
                 Err(TryRecvError::Disconnected) => {
-                    println!("Serial service stopping: command channel closed");
+                    error!("Serial service stopping: command channel closed");
                     break;
                 }
             }
@@ -134,7 +134,7 @@ pub fn start_serial_thread(
                 Err(e) if e.kind() == ErrorKind::TimedOut || e.kind() == ErrorKind::WouldBlock => {}
                 Err(e) => {
                     let port_label = current_port_name.as_deref().unwrap_or("unknown");
-                    println!("Connection to {} lost: {}", port_label, e);
+                    info!("Connection to {} lost: {}", port_label, e);
                     is_device_connected.store(false, Ordering::Relaxed);
                     let _ = app.emit("pico-connection", false);
                     current_port = None;
@@ -146,7 +146,7 @@ pub fn start_serial_thread(
             }
             if let Some(ready_id) = tracker.check_long_press_feedback() {
                 if let Err(e) = write_to_pico(port, &HostToPico::Vibrate { pattern: VibrationPattern::Medium }) {
-                    println!("Fehler beim Senden des Feedbacks: {}", e);
+                    error!("Fehler beim Senden des Feedbacks: {}", e);
                 }
             }
         }

@@ -1,6 +1,7 @@
 use crate::action::actions::Action;
 use crate::audio::toggle_mute_for_pids;
 use std::fmt::Debug;
+use log::{debug, error};
 use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId}; // <-- Import der zentralen Funktion
 
 #[derive(Debug, Clone)]
@@ -21,9 +22,9 @@ impl Action for ToggleForegroundAudioAction {
                 if pid != 0 {
                     // Wir übergeben das Array mit einer einzigen PID an audio.rs
                     if let Err(e) = toggle_mute_for_pids(&[pid]) {
-                        println!("Fehler beim Toggeln des Vordergrund-Programms: {}", e);
+                        error!("Fehler beim Toggeln des Vordergrund-Programms: {}", e);
                     } else {
-                        println!("Vordergrund-Audio getoggelt (PID: {})", pid);
+                        debug!("Vordergrund-Audio getoggelt (PID: {})", pid);
                     }
                 }
             }

@@ -2,6 +2,7 @@ use crate::action::actions::Action;
 use crate::audio::adjust_volume_for_pids;
 use crate::protocol::{HostToPico, VibrationPattern};
 use std::sync::mpsc;
+use log::error;
 use sysinfo::{ProcessesToUpdate, System};
 
 #[derive(Debug, Clone)]
@@ -37,7 +38,7 @@ impl Action for AppVolumeAction {
                             pattern: VibrationPattern::Medium,
                         });
                     }
-                    Err(e) => println!("Fehler bei {}: {}", name, e),
+                    Err(e) => error!("Fehler bei {}: {}", name, e),
                     _ => {} // Nichts tun, wenn das Limit nicht erreicht wurde
                 }
             }

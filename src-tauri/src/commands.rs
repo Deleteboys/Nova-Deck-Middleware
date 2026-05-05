@@ -8,9 +8,10 @@ use std::path::PathBuf;
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
+use log::error;
 use sysinfo::{Disks, ProcessesToUpdate, System};
 use tauri::{AppHandle, Emitter, Manager, State};
-
+use crate::audio::{list_audio_devices, AudioDeviceInfo};
 // --- Datenstrukturen für Mappings ---
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -19,7 +20,7 @@ pub enum ActionConfig {
     PressKey { key: String },
     MediaControl { key: String },
     SpotifyVolume { step: i8 },
-    ToggleAudio { device1: String, device2: String },
+    SwitchAudioDevice { device1: String, device2: String },
     MasterVolume { step: i8 },
     ToggleAppAudio { process_name: String },
     ToggleMasterMute,
@@ -122,8 +123,14 @@ fn create_action(
         ActionConfig::ToggleAppMedia { process_name } => {
             Box::new(modules::toggle_app_media_action::ToggleAppMediaAction { process_name })
         }
+        ActionConfig::SwitchAudioDevice { device1, device2 } => {
+            Box::new(modules::switch_audio_device::SwitchAudioAction {
+                device_a: device1,
+                device_b: device2,
+            })
+        },
         _ => {
-            println!("WARNUNG: Aktion noch nicht implementiert!");
+            error!("WARNUNG: Aktion noch nicht implementiert!");
             Box::new(modules::press_key_action::PressKeyAction {
                 key: enigo::Key::F14,
             })
@@ -409,4 +416,11 @@ pub fn get_start_minimized(app: AppHandle) -> bool {
     crate::window::load_window_state(&app)
         .map(|s| s.start_minimized)
         .unwrap_or(false)
+}
+
+#[tauri::command]
+pub fn get_audio_output_devices() -> Result<Vec<AudioDeviceInfo>, String> {
+    unsafe {
+        list_audio_devices().map_err(|e| e.to_string())
+    }
 }

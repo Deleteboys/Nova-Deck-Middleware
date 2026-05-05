@@ -80,6 +80,7 @@
 
         <div class="px-4 py-3" v-if="item.hasSettings">
 
+          <!-- Tastenkombination -->
           <div v-if="item.hasKey" class="d-flex align-center justify-space-between">
             <div class="text-body-2 text-grey">Tastenkombination</div>
             <v-select
@@ -93,6 +94,7 @@
             ></v-select>
           </div>
 
+          <!-- Media Tasten -->
           <div v-if="item.hasMediaKey" class="d-flex align-center justify-space-between">
             <div class="text-body-2 text-grey">Media Funktion</div>
             <v-select
@@ -109,6 +111,7 @@
             ></v-select>
           </div>
 
+          <!-- Lautstärke Intervalle -->
           <div v-if="item.hasStep">
             <div class="d-flex justify-space-between align-center mb-1">
               <div class="text-body-2 text-grey">Intervall</div>
@@ -147,17 +150,11 @@
             ></v-slider>
           </div>
 
-          <div v-if="item.needsProcess" class="mt-3">
+          <!-- Prozess Auswahl -->
+          <div v-if="item.needsProcess" class="mt-1">
             <div class="d-flex justify-space-between align-center mb-1">
-              <div class="text-body-2 text-grey">Prozess auswählen</div>
-              <v-btn
-                  icon="mdi-refresh"
-                  variant="text"
-                  size="x-small"
-                  color="grey"
-                  title="Liste aktualisieren"
-                  @click="fetchProcesses"
-              ></v-btn>
+              <div class="text-body-2 text-grey">Programm</div>
+              <v-btn icon="mdi-refresh" variant="text" size="x-small" color="grey" @click="fetchProcesses"></v-btn>
             </div>
             <v-autocomplete
                 :model-value="item.process_name"
@@ -165,10 +162,50 @@
                 variant="underlined"
                 density="compact"
                 hide-details
-                placeholder="Suche nach .exe..."
+                placeholder="Prozess wählen..."
                 class="text-white"
                 @update:model-value="(val) => updateActionProcess(item.triggerValue, val)"
             ></v-autocomplete>
+          </div>
+
+          <!-- Switch Audio Device (Design angepasst) -->
+          <div v-if="item.isAudioToggle" class="d-flex flex-column gap-2 mt-1">
+            <div class="d-flex align-center justify-space-between mb-1">
+              <div class="text-body-2 text-grey">Audiogeräte</div>
+              <v-btn icon="mdi-refresh" variant="text" size="x-small" color="grey" @click="fetchAudioDevices"></v-btn>
+            </div>
+
+            <div class="d-flex align-center justify-space-between">
+              <div class="text-caption text-grey">Gerät 1</div>
+              <v-select
+                  :model-value="item.device1"
+                  :items="audioDevices"
+                  item-title="name"
+                  item-value="name"
+                  variant="underlined"
+                  density="compact"
+                  hide-details
+                  class="compact-key-select"
+                  style="max-width: 180px;"
+                  @update:model-value="(val) => updateActionAudioDevices(item.triggerValue, val, item.device2)"
+              ></v-select>
+            </div>
+
+            <div class="d-flex align-center justify-space-between">
+              <div class="text-caption text-grey">Gerät 2</div>
+              <v-select
+                  :model-value="item.device2"
+                  :items="audioDevices"
+                  item-title="name"
+                  item-value="name"
+                  variant="underlined"
+                  density="compact"
+                  hide-details
+                  class="compact-key-select"
+                  style="max-width: 180px;"
+                  @update:model-value="(val) => updateActionAudioDevices(item.triggerValue, item.device1, val)"
+              ></v-select>
+            </div>
           </div>
         </div>
 
@@ -191,7 +228,9 @@ import {
   updateActionMapping,
   removeActionMapping,
   getActiveProcesses,
-  type TriggerType
+  getAudioDevices,
+  type TriggerType,
+  type AudioDeviceInfo
 } from '@/services/streamdeckCommands';
 
 const store = useStreamDeckStore();
@@ -199,6 +238,7 @@ const store = useStreamDeckStore();
 // --- STATE ---
 const editingStepTrigger = ref<TriggerType | null>(null);
 const activeProcesses = ref<string[]>([]);
+const audioDevices = ref<AudioDeviceInfo[]>([]);
 const fKeys = Array.from({ length: 12 }, (_, i) => `F${i + 13}`);
 
 const mediaKeys = [
@@ -216,7 +256,7 @@ const actionsLibrary = [
   { title: 'Media Control', icon: 'mdi-play-pause', config: { type: 'MediaControl', key: 'MEDIAPLAYPAUSE' } },
   { title: 'Spotify Volume', icon: 'mdi-spotify', config: { type: 'SpotifyVolume', step: 5 } },
   { title: 'Master Volume', icon: 'mdi-volume-high', config: { type: 'MasterVolume', step: 5 } },
-  { title: 'Audio Toggle', icon: 'mdi-swap-horizontal', config: { type: 'ToggleAudio', device1: 'HyperX', device2: 'Speakers' } },
+  { title: 'Switch Audio Device', icon: 'mdi-swap-horizontal', config: { type: 'SwitchAudioDevice', device1: '', device2: '' } },
   { title: 'App Audio (Volume)', icon: 'mdi-volume-plus', config: { type: 'AppVolume', process_name: '', step: 5 } },
   { title: 'App Audio (Toggle)', icon: 'mdi-volume-off', config: { type: 'ToggleAppAudio', process_name: '' } },
   { title: 'Global Mute (Toggle)', icon: 'mdi-volume-mute', config: { type: 'ToggleMasterMute' } },
@@ -248,7 +288,6 @@ const boundActionsList = computed(() => {
   const actionsMap = store.activeProfile?.keys[store.selectedElementId]?.actions;
   if (!actionsMap) return [];
 
-  // 1. Erst die Map in ein Array umwandeln
   const list = Object.entries(actionsMap).map(([triggerValue, setup]) => {
     const config = setup?.config;
     const type = config?.type;
@@ -257,7 +296,8 @@ const boundActionsList = computed(() => {
     const hasKey = config && 'key' in config && type === 'PressKey';
     const hasMediaKey = config && 'key' in config && type === 'MediaControl';
     const needsProcess = type === 'ToggleAppAudio' || type === 'AppVolume' || type === 'ToggleAppMedia';
-    const hasSettings = hasStep || hasKey || hasMediaKey || needsProcess;
+    const isAudioToggle = type === 'SwitchAudioDevice';
+    const hasSettings = hasStep || hasKey || hasMediaKey || needsProcess || isAudioToggle;
 
     return {
       triggerValue: triggerValue as TriggerType,
@@ -270,11 +310,13 @@ const boundActionsList = computed(() => {
       key: config?.key,
       needsProcess,
       process_name: config?.process_name,
+      isAudioToggle,
+      device1: config?.device1,
+      device2: config?.device2,
       hasSettings
     };
   });
 
-  // 2. Das Array sortieren
   const isEncoder = store.selectedElementId.startsWith('enc-');
   const order = isEncoder ? ENCODER_ORDER : BUTTON_ORDER;
 
@@ -289,6 +331,14 @@ const fetchProcesses = async () => {
     activeProcesses.value = await getActiveProcesses();
   } catch (error) {
     console.error("Prozesse konnten nicht geladen werden:", error);
+  }
+};
+
+const fetchAudioDevices = async () => {
+  try {
+    audioDevices.value = await getAudioDevices();
+  } catch (error) {
+    console.error("Audiogeräte konnten nicht geladen werden:", error);
   }
 };
 
@@ -308,7 +358,6 @@ const assignAction = async (action: any) => {
   }
 
   const config = { ...action.config };
-  // Standard-Voreinstellung: Links drehen -> Leiser, sonst Lauter
   if ('step' in config) {
     config.step = (targetTrigger === 'TurnLeft' || targetTrigger === 'PushTurnLeft') ? -5 : 5;
   }
@@ -360,6 +409,16 @@ const updateActionProcess = async (trigger: TriggerType, name: string) => {
   }
 };
 
+const updateActionAudioDevices = async (trigger: TriggerType, device1: string, device2: string) => {
+  if (!store.selectedElementId) return;
+  const currentAction = store.activeProfile?.keys[store.selectedElementId]?.actions?.[trigger];
+  if (currentAction) {
+    const updatedConfig = { ...currentAction.config, device1, device2 };
+    store.updateElementAction(store.selectedElementId, trigger, { ...currentAction, config: updatedConfig });
+    try { await updateActionMapping(store.selectedElementId, trigger, updatedConfig); } catch (e) { console.error(e); }
+  }
+};
+
 const unbindSpecificAction = async (triggerToDelete: TriggerType) => {
   if (store.selectedElementId) {
     store.clearElementAction(store.selectedElementId, triggerToDelete);
@@ -369,10 +428,12 @@ const unbindSpecificAction = async (triggerToDelete: TriggerType) => {
 
 onMounted(() => {
   fetchProcesses();
+  fetchAudioDevices();
 });
 </script>
 
 <style scoped>
+.gap-2 { gap: 8px; }
 .gap-3 { gap: 12px; }
 
 .text-help { cursor: help; }
@@ -387,7 +448,9 @@ onMounted(() => {
 }
 .compact-trigger-select :deep(.v-field__append-inner) { padding-top: 0 !important; align-items: center; }
 
-.compact-key-select { max-width: 80px; }
+.compact-key-select {
+  max-width: 140px;
+}
 .compact-key-select :deep(.v-field__input) {
   font-size: 0.875rem !important;
   text-align: right;
@@ -426,10 +489,5 @@ onMounted(() => {
   font-weight: bold;
   color: white !important;
   padding-bottom: 2px !important;
-}
-.inline-input-wrapper :deep(input[type="number"]::-webkit-outer-spin-button),
-.inline-input-wrapper :deep(input[type="number"]::-webkit-inner-spin-button) {
-  -webkit-appearance: none;
-  margin: 0;
 }
 </style>

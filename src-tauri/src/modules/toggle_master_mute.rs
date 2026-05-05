@@ -1,11 +1,12 @@
 use crate::action::actions::Action;
 use std::fmt::Debug;
+use log::{debug, error};
 use windows::Win32::Media::Audio::Endpoints::IAudioEndpointVolume;
 use windows::Win32::Media::Audio::*;
 use windows::Win32::System::Com::*;
 
 #[derive(Debug, Clone)]
-pub struct ToggleMasterMuteAction {} // Braucht keine Parameter!
+pub struct ToggleMasterMuteAction {}
 
 unsafe fn get_master_volume_interface() -> windows::core::Result<IAudioEndpointVolume> {
     let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
@@ -34,9 +35,9 @@ impl Action for ToggleMasterMuteAction {
         tauri::async_runtime::spawn(async move {
             unsafe {
                 if let Err(e) = toggle_master_mute() {
-                    println!("Fehler beim Toggeln des globalen Sounds: {}", e);
+                    error!("Fehler beim Toggeln des globalen Sounds: {}", e);
                 } else {
-                    println!("Globaler Sound getoggelt.");
+                    debug!("Globaler Sound getoggelt.");
                 }
             }
         });

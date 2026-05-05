@@ -3,6 +3,7 @@ use crate::protocol::HostToPico;
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::Duration;
+use log::info;
 use tauri::Emitter; // WICHTIG: Erlaubt das Senden von Events ans Frontend
 
 #[derive(serde::Serialize, Clone)]
@@ -18,7 +19,7 @@ pub fn start_monitoring(
     tx: mpsc::Sender<HostToPico>,
 ) {
     thread::spawn(move || {
-        println!("Audio thread is running in the background.");
+        info!("Audio thread is running in the background.");
         let mut last_volumes = [255u8; 4];
         let mut last_mutes = [false; 4];
 
