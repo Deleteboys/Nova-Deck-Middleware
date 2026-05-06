@@ -30,7 +30,7 @@
 import { ref, onUnmounted } from 'vue';
 
 // --- PROPS ---
-const props = defineProps<{
+defineProps<{
   actionKey: string | undefined;
 }>();
 
