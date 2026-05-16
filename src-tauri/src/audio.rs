@@ -11,7 +11,7 @@ pub unsafe fn adjust_volume_for_pids(target_pids: &[u32], step: i8) -> windows::
         return Ok(false);
     }
 
-    let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+    let _com = crate::com::ComGuard::init_multithreaded()?;
     let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
     let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole)?;
     let manager: IAudioSessionManager2 =
@@ -49,7 +49,7 @@ pub unsafe fn toggle_mute_for_pids(target_pids: &[u32]) -> windows::core::Result
         return Ok(());
     }
 
-    let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+    let _com = crate::com::ComGuard::init_multithreaded()?;
     let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
     let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole)?;
     let manager: IAudioSessionManager2 =
@@ -78,7 +78,7 @@ pub unsafe fn toggle_mute_for_pids(target_pids: &[u32]) -> windows::core::Result
 }
 
 pub unsafe fn get_master_volume() -> windows::core::Result<f32> {
-    let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+    let _com = crate::com::ComGuard::init_multithreaded()?;
 
     let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
     let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole)?;
@@ -89,7 +89,7 @@ pub unsafe fn get_master_volume() -> windows::core::Result<f32> {
 }
 
 pub unsafe fn get_volume_by_process_name(name: &str) -> windows::core::Result<Option<f32>> {
-    let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+    let _com = crate::com::ComGuard::init_multithreaded()?;
     let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
     let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole)?;
     let manager: IAudioSessionManager2 =
@@ -117,7 +117,7 @@ pub unsafe fn get_volume_by_process_name(name: &str) -> windows::core::Result<Op
 }
 
 pub unsafe fn get_master_status() -> windows::core::Result<(f32, bool)> {
-    let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+    let _com = crate::com::ComGuard::init_multithreaded()?;
     let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
     let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole)?;
     let endpoint_volume: IAudioEndpointVolume = device.Activate(CLSCTX_ALL, None)?;
@@ -129,7 +129,7 @@ pub unsafe fn get_master_status() -> windows::core::Result<(f32, bool)> {
 }
 
 pub unsafe fn get_process_status(name: &str) -> windows::core::Result<Option<(f32, bool)>> {
-    let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+    let _com = crate::com::ComGuard::init_multithreaded()?;
     let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
     let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole)?;
     let manager: IAudioSessionManager2 =
@@ -156,7 +156,7 @@ pub unsafe fn get_process_status(name: &str) -> windows::core::Result<Option<(f3
 }
 
 pub unsafe fn get_foreground_status() -> windows::core::Result<Option<(f32, bool)>> {
-    let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+    let _com = crate::com::ComGuard::init_multithreaded()?;
 
     // 1. Vordergrund-Fenster und dessen PID ermitteln
     let hwnd = GetForegroundWindow();
@@ -196,7 +196,6 @@ pub unsafe fn get_foreground_status() -> windows::core::Result<Option<(f32, bool
     Ok(None)
 }
 
-
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct AudioDeviceInfo {
     pub id: String,
@@ -204,7 +203,7 @@ pub struct AudioDeviceInfo {
 }
 
 pub unsafe fn list_audio_devices() -> windows::core::Result<Vec<AudioDeviceInfo>> {
-    let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+    let _com = crate::com::ComGuard::init_multithreaded()?;
     let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
 
     let collection = enumerator.EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE)?;

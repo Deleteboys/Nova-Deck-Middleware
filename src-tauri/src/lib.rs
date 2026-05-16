@@ -1,5 +1,6 @@
 pub mod action;
 mod audio;
+mod com;
 mod commands;
 mod config;
 mod modules;

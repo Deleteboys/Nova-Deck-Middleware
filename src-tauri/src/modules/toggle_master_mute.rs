@@ -1,6 +1,6 @@
 use crate::action::actions::Action;
-use std::fmt::Debug;
 use log::{debug, error};
+use std::fmt::Debug;
 use windows::Win32::Media::Audio::Endpoints::IAudioEndpointVolume;
 use windows::Win32::Media::Audio::*;
 use windows::Win32::System::Com::*;
@@ -9,7 +9,6 @@ use windows::Win32::System::Com::*;
 pub struct ToggleMasterMuteAction {}
 
 unsafe fn get_master_volume_interface() -> windows::core::Result<IAudioEndpointVolume> {
-    let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
     let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
     let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole)?;
     let endpoint_volume: IAudioEndpointVolume =
@@ -18,6 +17,7 @@ unsafe fn get_master_volume_interface() -> windows::core::Result<IAudioEndpointV
 }
 
 pub unsafe fn toggle_master_mute() -> windows::core::Result<()> {
+    let _com = crate::com::ComGuard::init_multithreaded()?;
     let interface = get_master_volume_interface()?;
 
     // Aktuellen Master-Mute-Status abfragen

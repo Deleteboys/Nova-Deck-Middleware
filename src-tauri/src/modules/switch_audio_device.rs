@@ -1,14 +1,11 @@
-use log::{debug, error, info};
 use crate::action::actions::Action;
-use windows::core::{Interface, GUID, HRESULT, PCWSTR, IUnknown};
-use windows::Win32::Media::Audio::{
-    eCommunications, eConsole, eMultimedia, eRender, IMMDeviceEnumerator, MMDeviceEnumerator,
-    ERole,
-};
-use windows::Win32::System::Com::{
-    CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_MULTITHREADED,
-};
 use crate::audio::list_audio_devices;
+use log::{debug, error};
+use windows::core::{IUnknown, Interface, GUID, HRESULT, PCWSTR};
+use windows::Win32::Media::Audio::{
+    eCommunications, eConsole, eMultimedia, eRender, ERole, IMMDeviceEnumerator, MMDeviceEnumerator,
+};
+use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_ALL};
 
 #[repr(C)]
 pub struct IPolicyConfigVtbl {
@@ -51,7 +48,10 @@ impl Action for SwitchAudioAction {
     fn execute(&self) {
         unsafe {
             // COM Initialisierung für diesen Thread[cite: 2]
-            let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+            let Ok(_com) = crate::com::ComGuard::init_multithreaded() else {
+                error!("Fehler beim Initialisieren von Windows COM.");
+                return;
+            };
 
             // 1. Alle verfügbaren Geräte über das Audio-Modul abrufen[cite: 2]
             let Ok(devices) = list_audio_devices() else {
@@ -60,22 +60,47 @@ impl Action for SwitchAudioAction {
             };
 
             // 2. IDs für die konfigurierten Namen finden
-            let id_a = devices.iter().find(|d| d.name == self.device_a).map(|d| d.id.clone());
-            let id_b = devices.iter().find(|d| d.name == self.device_b).map(|d| d.id.clone());
+            let id_a = devices
+                .iter()
+                .find(|d| d.name == self.device_a)
+                .map(|d| d.id.clone());
+            let id_b = devices
+                .iter()
+                .find(|d| d.name == self.device_b)
+                .map(|d| d.id.clone());
 
             let (Some(target_a), Some(target_b)) = (id_a, id_b) else {
-                error!("❌ Eines der Geräte (A: '{}' oder B: '{}') wurde nicht gefunden.", self.device_a, self.device_b);
+                error!(
+                    "❌ Eines der Geräte (A: '{}' oder B: '{}') wurde nicht gefunden.",
+                    self.device_a, self.device_b
+                );
                 return;
             };
 
             // 3. Aktuelles Standard-Gerät ermitteln[cite: 2]
-            let Ok(enumerator) = CoCreateInstance::<_, IMMDeviceEnumerator>(&MMDeviceEnumerator, None, CLSCTX_ALL) else { return };
-            let Ok(current_endpoint) = enumerator.GetDefaultAudioEndpoint(eRender, eConsole) else { return };
-            let Ok(current_id) = current_endpoint.GetId() else { return };
+            let Ok(enumerator) =
+                CoCreateInstance::<_, IMMDeviceEnumerator>(&MMDeviceEnumerator, None, CLSCTX_ALL)
+            else {
+                return;
+            };
+            let Ok(current_endpoint) = enumerator.GetDefaultAudioEndpoint(eRender, eConsole) else {
+                return;
+            };
+            let Ok(current_id) = current_endpoint.GetId() else {
+                return;
+            };
             let current_id_str = current_id.to_string().unwrap_or_default();
 
-            let target_id = if current_id_str == target_a { &target_b } else { &target_a };
-            let target_name = if current_id_str == target_a { &self.device_b } else { &self.device_a };
+            let target_id = if current_id_str == target_a {
+                &target_b
+            } else {
+                &target_a
+            };
+            let target_name = if current_id_str == target_a {
+                &self.device_b
+            } else {
+                &self.device_a
+            };
 
             let id_wide: Vec<u16> = target_id.encode_utf16().chain(std::iter::once(0)).collect();
             let pcwstr_id = PCWSTR(id_wide.as_ptr());
@@ -90,7 +115,8 @@ impl Action for SwitchAudioAction {
                 if let Ok(pc) = CoCreateInstance::<_, PolicyConfig>(clsid, None, CLSCTX_ALL) {
                     let _ = (pc.vtable().set_default_endpoint)(pc.as_raw(), pcwstr_id, eConsole);
                     let _ = (pc.vtable().set_default_endpoint)(pc.as_raw(), pcwstr_id, eMultimedia);
-                    let _ = (pc.vtable().set_default_endpoint)(pc.as_raw(), pcwstr_id, eCommunications);
+                    let _ =
+                        (pc.vtable().set_default_endpoint)(pc.as_raw(), pcwstr_id, eCommunications);
                     success = true;
                     break;
                 }

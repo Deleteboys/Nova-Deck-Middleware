@@ -18,9 +18,7 @@ use windows::Win32::Media::Audio::{
     eConsole, eRender, IAudioSessionControl2, IAudioSessionManager2, IMMDeviceEnumerator,
     MMDeviceEnumerator,
 };
-use windows::Win32::System::Com::{
-    CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_APARTMENTTHREADED,
-};
+use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_ALL};
 // --- Datenstrukturen für Mappings ---
 
 type SpotifyClientPtr = Arc<tokio::sync::Mutex<Option<rspotify::AuthCodePkceSpotify>>>;
@@ -331,8 +329,7 @@ pub fn get_active_audio_processes() -> Vec<String> {
     let mut audio_pids = HashSet::new();
 
     unsafe {
-        // COM initialisieren
-        if CoInitializeEx(None, COINIT_APARTMENTTHREADED).is_ok() {
+        if let Ok(_com) = crate::com::ComGuard::init_apartment_threaded() {
             // Wir trennen den Aufruf von der Zuweisung, damit wir den Typ sauber annotieren können
             let enumerator_result: windows::core::Result<IMMDeviceEnumerator> =
                 CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL);

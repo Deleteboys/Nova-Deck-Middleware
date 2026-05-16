@@ -1,8 +1,8 @@
 use crate::action::actions::Action;
 use crate::protocol::{HostToPico, VibrationPattern};
+use log::{debug, error};
 use std::fmt::Debug;
 use std::sync::mpsc;
-use log::{debug, error};
 use windows::Win32::Media::Audio::Endpoints::*;
 use windows::Win32::Media::Audio::*;
 use windows::Win32::System::Com::*;
@@ -14,7 +14,6 @@ pub struct MasterVolumeAction {
 }
 
 unsafe fn get_master_volume_interface() -> windows::core::Result<IAudioEndpointVolume> {
-    let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
     let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
     let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole)?;
     let endpoint_volume: IAudioEndpointVolume =
@@ -23,11 +22,13 @@ unsafe fn get_master_volume_interface() -> windows::core::Result<IAudioEndpointV
 }
 
 pub unsafe fn set_master_volume(level: f32) -> windows::core::Result<()> {
+    let _com = crate::com::ComGuard::init_multithreaded()?;
     let interface = get_master_volume_interface()?;
     interface.SetMasterVolumeLevelScalar(level, std::ptr::null())
 }
 
 pub unsafe fn get_master_volume() -> windows::core::Result<f32> {
+    let _com = crate::com::ComGuard::init_multithreaded()?;
     let interface = get_master_volume_interface()?;
     interface.GetMasterVolumeLevelScalar()
 }
