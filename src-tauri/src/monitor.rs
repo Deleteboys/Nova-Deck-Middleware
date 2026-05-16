@@ -20,6 +20,7 @@ pub fn start_monitoring(
 ) {
     thread::spawn(move || {
         info!("Audio thread is running in the background.");
+        let _com = unsafe { crate::com::ComGuard::init_multithreaded().ok() };
         let mut last_volumes = [255u8; 4];
         let mut last_mutes = [false; 4];
 

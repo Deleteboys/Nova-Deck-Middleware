@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::TryRecvError;
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use log::{error, info};
 use crate::action::manager::ActionManager;
 use crate::action::tracker::InputTracker;
@@ -11,6 +11,8 @@ use crate::commands::send_to_pico;
 use crate::protocol::{HostToPico, PicoToHost, VibrationPattern};
 use serialport::{available_ports, SerialPortType};
 use tauri::{AppHandle, Emitter};
+
+const MAX_ACCUMULATOR_BYTES: usize = 512;
 
 pub fn start_serial_thread(
     app: AppHandle,
@@ -22,6 +24,7 @@ pub fn start_serial_thread(
     let mut current_port_name: Option<String> = None;
     let mut accumulator: Vec<u8> = Vec::new();
     let mut serial_buf = [0u8; 1024];
+    let mut last_buffer_drop_log = Instant::now() - Duration::from_secs(10);
 
     let mut tracker = InputTracker::new();
 
@@ -95,6 +98,18 @@ pub fn start_serial_thread(
             match port.read(&mut serial_buf) {
                 Ok(bytes_read) if bytes_read > 0 => {
                     accumulator.extend_from_slice(&serial_buf[..bytes_read]);
+                    if accumulator.len() > MAX_ACCUMULATOR_BYTES {
+                        if last_buffer_drop_log.elapsed() >= Duration::from_secs(10) {
+                            error!(
+                                "Serial receive buffer exceeded {} bytes; dropping buffered data to resync",
+                                MAX_ACCUMULATOR_BYTES
+                            );
+                            last_buffer_drop_log = Instant::now();
+                        }
+                        reset_accumulator(&mut accumulator);
+                        continue;
+                    }
+
                     loop {
                         match postcard::take_from_bytes::<PicoToHost>(&accumulator) {
                             Ok((msg, rest)) => {
@@ -119,7 +134,12 @@ pub fn start_serial_thread(
 
                                 accumulator = rest.to_vec();
                             }
-                            Err(postcard::Error::DeserializeUnexpectedEnd) => break,
+                            Err(postcard::Error::DeserializeUnexpectedEnd) => {
+                                if accumulator.len() > MAX_ACCUMULATOR_BYTES {
+                                    reset_accumulator(&mut accumulator);
+                                }
+                                break;
+                            }
                             Err(_) => {
                                 if !accumulator.is_empty() {
                                     accumulator.remove(0);
@@ -161,6 +181,11 @@ pub fn start_serial_thread(
     }
 
     is_device_connected.store(false, Ordering::Relaxed);
+}
+
+fn reset_accumulator(accumulator: &mut Vec<u8>) {
+    accumulator.clear();
+    accumulator.shrink_to(MAX_ACCUMULATOR_BYTES);
 }
 
 fn write_to_pico(
