@@ -168,10 +168,13 @@ pub unsafe fn adjust_volume_for_pids(target_pids: &[u32], step: i8) -> windows::
                     if target_pids.contains(&pid) {
                         if let Ok(simple_volume) = session.cast::<ISimpleAudioVolume>() {
                             let current_vol = simple_volume.GetMasterVolume()?;
-                            let new_vol = (current_vol + step_float).clamp(0.0, 1.0);
-                            if new_vol == 1.0 || new_vol == 0.0 {
+                            let current_vol_pct = (current_vol * 100.0).round() as i16;
+                            let new_vol_pct = (current_vol_pct + step as i16).clamp(0, 100);
+                            if new_vol_pct == 100 || new_vol_pct == 0 {
                                 boundary_hit = true;
                             }
+
+                            let new_vol = new_vol_pct as f32 / 100.0;
                             simple_volume.SetMasterVolume(new_vol, std::ptr::null())?;
                         }
                     }
