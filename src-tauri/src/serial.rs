@@ -25,6 +25,7 @@ pub fn start_serial_thread(
     let mut accumulator: Vec<u8> = Vec::new();
     let mut serial_buf = [0u8; 1024];
     let mut last_buffer_drop_log = Instant::now() - Duration::from_secs(10);
+    let mut last_ping = Instant::now();
 
     let mut tracker = InputTracker::new();
 
@@ -63,6 +64,7 @@ pub fn start_serial_thread(
                         current_port = Some(port);
                         current_port_name = Some(port_name);
                         accumulator.clear();
+                        last_ping = Instant::now();
                     }
                     Err(e) => {
                         error!("Failed to open port {}: {}", port_name, e);
@@ -191,6 +193,22 @@ pub fn start_serial_thread(
                     continue;
                 }
             }
+            if last_ping.elapsed() >= Duration::from_secs(5) {
+                last_ping = Instant::now();
+                if let Err(e) = write_to_pico(port, &HostToPico::Ping) {
+                    let port_label = current_port_name.as_deref().unwrap_or("unknown");
+                    info!("Keepalive ping to {} failed, reconnecting: {}", port_label, e);
+                    is_device_connected.store(false, Ordering::Relaxed);
+                    crate::diagnostics::record_serial_disconnect();
+                    let _ = app.emit("pico-connection", false);
+                    current_port = None;
+                    current_port_name = None;
+                    accumulator.clear();
+                    thread::sleep(Duration::from_millis(500));
+                    continue;
+                }
+            }
+
             if let Some(ready_id) = tracker.check_long_press_feedback() {
                 if let Err(e) = write_to_pico(port, &HostToPico::Vibrate { pattern: VibrationPattern::Medium }) {
                     error!("Fehler beim Senden des Feedbacks: {}", e);
