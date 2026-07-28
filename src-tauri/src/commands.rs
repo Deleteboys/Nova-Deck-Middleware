@@ -194,6 +194,7 @@ fn trigger_from_payload(element_id: &str, trigger_type: &str) -> Result<Hardware
         "PushTurnLeft" => EncoderEvent::PushTurnLeft,
         "PushTurnRight" => EncoderEvent::PushTurnRight,
         "PushPress" => EncoderEvent::PushPress,
+        "LongPress" => EncoderEvent::LongPress,
         _ => return Err(format!("Unknown encoder trigger: {trigger_type}")),
     };
     Ok(HardwareTrigger::Encoder { id, event })

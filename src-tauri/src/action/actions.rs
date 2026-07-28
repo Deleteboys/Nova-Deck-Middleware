@@ -14,6 +14,7 @@ pub enum EncoderEvent {
     PushTurnLeft,
     PushTurnRight,
     PushPress,
+    LongPress,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

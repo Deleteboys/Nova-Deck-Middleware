@@ -231,7 +231,7 @@ const categorizedActions = [
   }
 ];
 
-const ENCODER_ORDER: TriggerType[] = ['TurnRight', 'TurnLeft', 'PushTurnRight', 'PushTurnLeft', 'PushPress'];
+const ENCODER_ORDER: TriggerType[] = ['TurnRight', 'TurnLeft', 'PushTurnRight', 'PushTurnLeft', 'PushPress', 'LongPress'];
 const BUTTON_ORDER: TriggerType[] = ['ShortPress', 'DoublePress', 'LongPress'];
 
 const triggerOptions = computed(() => {
@@ -241,7 +241,8 @@ const triggerOptions = computed(() => {
       { title: 'Links drehen', value: 'TurnLeft' },
       { title: 'Drücken + Rechts', value: 'PushTurnRight' },
       { title: 'Drücken + Links', value: 'PushTurnLeft' },
-      { title: 'Nur Drücken', value: 'PushPress' }
+      { title: 'Nur Drücken', value: 'PushPress' },
+      { title: 'Lang drücken', value: 'LongPress' }
     ];
   }
   return [

@@ -12,6 +12,8 @@ pub struct InputTracker {
     long_press_notified: [bool; 16],
     encoder_pushed: [bool; 4],
     encoder_moved_while_pushed: [bool; 4],
+    encoder_press_times: [Option<Instant>; 4],
+    encoder_long_press_notified: [bool; 4],
 }
 
 impl InputTracker {
@@ -23,6 +25,8 @@ impl InputTracker {
             long_press_notified: [false; 16],
             encoder_pushed: [false; 4],
             encoder_moved_while_pushed: [false; 4],
+            encoder_press_times: [None; 4],
+            encoder_long_press_notified: [false; 4],
         }
     }
 
@@ -87,16 +91,28 @@ impl InputTracker {
                 if pressed {
                     self.encoder_pushed[idx] = true;
                     self.encoder_moved_while_pushed[idx] = false;
+                    self.encoder_press_times[idx] = Some(Instant::now());
+                    self.encoder_long_press_notified[idx] = false;
                     None
                 } else {
                     self.encoder_pushed[idx] = false;
 
                     if !self.encoder_moved_while_pushed[idx] {
-                        return Some(HardwareTrigger::Encoder {
-                            id,
-                            event: EncoderEvent::PushPress,
-                        });
+                        let is_long = self.encoder_press_times[idx]
+                            .map(|t| t.elapsed().as_millis() >= LONG_PRESS_MS)
+                            .unwrap_or(false);
+                        self.encoder_press_times[idx] = None;
+                        self.encoder_long_press_notified[idx] = false;
+
+                        let event = if is_long {
+                            EncoderEvent::LongPress
+                        } else {
+                            EncoderEvent::PushPress
+                        };
+                        return Some(HardwareTrigger::Encoder { id, event });
                     }
+                    self.encoder_press_times[idx] = None;
+                    self.encoder_long_press_notified[idx] = false;
                     None
                 }
             }
@@ -147,6 +163,14 @@ impl InputTracker {
             if let Some(press_time) = self.button_press_times[id] {
                 if !self.long_press_notified[id] && press_time.elapsed().as_millis() >= LONG_PRESS_MS {
                     self.long_press_notified[id] = true;
+                    return Some(id as u8);
+                }
+            }
+        }
+        for id in 0..4 {
+            if let Some(press_time) = self.encoder_press_times[id] {
+                if !self.encoder_long_press_notified[id] && press_time.elapsed().as_millis() >= LONG_PRESS_MS {
+                    self.encoder_long_press_notified[id] = true;
                     return Some(id as u8);
                 }
             }
