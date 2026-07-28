@@ -8,9 +8,30 @@ use log::{error, info};
 use crate::action::manager::ActionManager;
 use crate::action::tracker::InputTracker;
 use crate::commands::send_to_pico;
-use crate::protocol::{HostToPico, PicoToHost, VibrationPattern};
+use crate::protocol::{HostToPico, IconType, PicoToHost, VibrationPattern};
 use serialport::{available_ports, SerialPortType};
 use tauri::{AppHandle, Emitter};
+
+#[derive(serde::Serialize, Clone)]
+struct IconSlotUpdate {
+    slot: u8,
+    icon: &'static str,
+}
+
+fn icon_type_to_str(icon: IconType) -> &'static str {
+    match icon {
+        IconType::Master => "MASTER",
+        IconType::Spotify => "SPOTIFY",
+        IconType::Discord => "DISCORD",
+        IconType::Browser => "BROWSER",
+        IconType::Mic => "MIC",
+        IconType::Camera => "CAMERA",
+        IconType::PlayPause => "PLAY_PAUSE",
+        IconType::Light => "LIGHT",
+        IconType::ActiveWindow => "ACTIVE_WINDOW",
+        IconType::None => "NONE",
+    }
+}
 
 const MAX_ACCUMULATOR_BYTES: usize = 512;
 
@@ -95,6 +116,12 @@ pub fn start_serial_thread(
                             continue;
                         } else {
                             crate::diagnostics::record_serial_host_command_written();
+                            if let HostToPico::SetIconSlot { slot, icon } = cmd {
+                                let _ = app.emit("icon-slot-update", IconSlotUpdate {
+                                    slot,
+                                    icon: icon_type_to_str(icon),
+                                });
+                            }
                         }
                     }
                 }

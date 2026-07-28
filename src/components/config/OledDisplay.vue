@@ -22,7 +22,9 @@ import { listen } from '@tauri-apps/api/event';
 
 const store = useStreamDeckStore();
 const oledCanvas = ref<HTMLCanvasElement | null>(null);
+const runtimeIcons = ref<(string | null)[]>([null, null, null, null]);
 let unlistenAudioUpdate: (() => void) | null = null;
+let unlistenIconUpdate: (() => void) | null = null;
 
 // Fallback-Daten
 const VOLUMES = [50, 65, 80, 35];
@@ -279,7 +281,7 @@ const renderDisplay = () => {
     if (i > 0) drawDashedVLine(xStart, 15, DISPLAY_HEIGHT - 1, 1, 2, true);
 
     const slotData = displayConfig[i] || {};
-    const iconKey = slotData.icon || defaultIcons[i];
+    const iconKey = runtimeIcons.value[i] || slotData.icon || defaultIcons[i];
     const iconData = ICONS[iconKey] || ICONS['MASTER'];
 
     drawIcon(iconX, iconY, iconData, true);
@@ -310,7 +312,13 @@ const renderDisplay = () => {
 onMounted(async () => {
   renderDisplay();
 
-  // HIER GEFIXT: Frontend lauscht jetzt auf Events aus Rust
+  unlistenIconUpdate = await listen('icon-slot-update', (event: any) => {
+    const { slot, icon } = event.payload;
+    const updated = [...runtimeIcons.value];
+    updated[slot] = icon;
+    runtimeIcons.value = updated;
+  });
+
   unlistenAudioUpdate = await listen('audio-update', (event: any) => {
     const { slot, volume, muted } = event.payload;
 
@@ -337,6 +345,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (unlistenAudioUpdate) unlistenAudioUpdate();
+  if (unlistenIconUpdate) unlistenIconUpdate();
 });
 
 watchEffect(() => {

@@ -17,6 +17,17 @@
 
         <div class="px-4 py-3">
 
+          <v-alert
+              v-if="isSlotControlled(index)"
+              type="info"
+              density="compact"
+              variant="tonal"
+              class="mb-3 text-caption"
+              icon="mdi-swap-horizontal-circle"
+          >
+            Dieser Slot wird vom <strong>App-Wechsler</strong> gesteuert. Das Icon wird beim Wechsel automatisch überschrieben.
+          </v-alert>
+
           <div class="d-flex align-center justify-space-between mb-4">
             <div class="text-body-2 text-grey">Anzeigesymbol</div>
             <div style="width: 130px;">
@@ -69,6 +80,12 @@ import { getActiveProcesses, setIconSlot } from '@/services/streamdeckCommands';
 import {invoke} from "@tauri-apps/api/core";
 
 const store = useStreamDeckStore();
+
+const isSlotControlled = (slotIndex: number): boolean => {
+  const actions = store.activeProfile?.keys[`enc-${slotIndex}`]?.actions;
+  if (!actions) return false;
+  return Object.values(actions).some((a) => a?.config?.type === 'AppSwitcherCycle');
+};
 
 const activeProcesses = ref<string[]>([]);
 const oledSlots = ref([
