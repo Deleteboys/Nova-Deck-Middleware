@@ -112,6 +112,7 @@ fn create_action(
     spotify_client: SpotifyClientPtr,
     encoder_id: Option<u8>,
     switcher_states: &[Arc<Mutex<AppSwitcherRuntime>>],
+    monitor_slots: Arc<Mutex<[Option<String>; 4]>>,
 ) -> Box<dyn crate::action::actions::Action> {
     match config {
         ActionConfig::PressKey { key } => Box::new(modules::press_key_action::PressKeyAction {
@@ -202,6 +203,7 @@ fn create_action(
                 encoder_slot: encoder_id,
                 runtime,
                 tx,
+                monitor_slots: encoder_id.map(|_| Arc::clone(&monitor_slots)),
             })
         }
     }
@@ -305,7 +307,7 @@ pub fn update_mapping(state: State<AppState>, payload: MappingPayload) -> Result
 
     let trigger = trigger_from_payload(&payload.element_id, &payload.trigger_type)?;
     let encoder_id = encoder_id_from_element(&payload.element_id);
-    let action = create_action(payload.action_config, tx, spotify_ptr, encoder_id, &state.encoder_switcher_states);
+    let action = create_action(payload.action_config, tx, spotify_ptr, encoder_id, &state.encoder_switcher_states, Arc::clone(&state.monitor_slots));
 
     if let Ok(mut manager) = state.action_manager.lock() {
         manager.register(trigger, action);
@@ -345,6 +347,7 @@ pub fn sync_mappings(state: State<AppState>, mappings: Vec<MappingPayload>) -> R
                     spotify_ptr.clone(),
                     encoder_id,
                     &state.encoder_switcher_states,
+                    Arc::clone(&state.monitor_slots),
                 );
                 manager.register(trigger, action);
             }

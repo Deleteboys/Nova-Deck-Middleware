@@ -28,44 +28,46 @@
             Dieser Slot wird vom <strong>App-Wechsler</strong> gesteuert. Das Icon wird beim Wechsel automatisch überschrieben.
           </v-alert>
 
-          <div class="d-flex align-center justify-space-between mb-4">
-            <div class="text-body-2 text-grey">Anzeigesymbol</div>
-            <div style="width: 130px;">
-              <v-select
-                  v-model="slot.icon"
-                  :items="['MASTER', 'SPOTIFY', 'DISCORD', 'BROWSER','MIC','CAMERA','PLAY_PAUSE', 'LIGHT', 'ACTIVE_WINDOW','JELLYFIN', 'NONE']"
+          <template v-if="!isSlotControlled(index)">
+            <div class="d-flex align-center justify-space-between mb-4">
+              <div class="text-body-2 text-grey">Anzeigesymbol</div>
+              <div style="width: 130px;">
+                <v-select
+                    v-model="slot.icon"
+                    :items="['MASTER', 'SPOTIFY', 'DISCORD', 'BROWSER','MIC','CAMERA','PLAY_PAUSE', 'LIGHT', 'ACTIVE_WINDOW','JELLYFIN', 'NONE']"
+                    variant="underlined"
+                    density="compact"
+                    hide-details
+                    class="slot-select text-white"
+                    @update:model-value="(newIcon) => handleIconChange(index, newIcon)"
+                ></v-select>
+              </div>
+            </div>
+
+            <div>
+              <div class="d-flex justify-space-between align-center mb-1">
+                <div class="text-body-2 text-grey">Gekoppelter Prozess</div>
+                <v-btn
+                    icon="mdi-refresh"
+                    variant="text"
+                    size="x-small"
+                    color="grey"
+                    title="Liste aktualisieren"
+                    @click="fetchProcesses"
+                ></v-btn>
+              </div>
+              <v-autocomplete
+                  v-model="slot.process"
+                  :items="activeProcesses"
                   variant="underlined"
                   density="compact"
                   hide-details
-                  class="slot-select text-white"
-                  @update:model-value="(newIcon) => handleIconChange(index, newIcon)"
-              ></v-select>
+                  placeholder="Kein Prozess (Standard)"
+                  class="text-white"
+                  @update:model-value="handleConfigChange"
+              ></v-autocomplete>
             </div>
-          </div>
-
-          <div>
-            <div class="d-flex justify-space-between align-center mb-1">
-              <div class="text-body-2 text-grey">Gekoppelter Prozess</div>
-              <v-btn
-                  icon="mdi-refresh"
-                  variant="text"
-                  size="x-small"
-                  color="grey"
-                  title="Liste aktualisieren"
-                  @click="fetchProcesses"
-              ></v-btn>
-            </div>
-            <v-autocomplete
-                v-model="slot.process"
-                :items="activeProcesses"
-                variant="underlined"
-                density="compact"
-                hide-details
-                placeholder="Kein Prozess (Standard)"
-                class="text-white"
-                @update:model-value="handleConfigChange"
-            ></v-autocomplete>
-          </div>
+          </template>
 
         </div>
       </v-card>

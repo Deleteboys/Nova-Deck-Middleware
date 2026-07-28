@@ -37,6 +37,7 @@ pub struct AppSwitcherCycleAction {
     pub encoder_slot: Option<u8>,
     pub runtime: Arc<Mutex<AppSwitcherRuntime>>,
     pub tx: mpsc::Sender<HostToPico>,
+    pub monitor_slots: Option<Arc<Mutex<[Option<String>; 4]>>>,
 }
 
 impl Action for AppSwitcherCycleAction {
@@ -57,6 +58,13 @@ impl Action for AppSwitcherCycleAction {
                 .unwrap_or_default();
             let icon = parse_icon_str(&icon_str);
             let _ = self.tx.send(HostToPico::SetIconSlot { slot, icon });
+
+            if let Some(monitor_slots) = &self.monitor_slots {
+                if let Ok(mut slots) = monitor_slots.lock() {
+                    let process = rt.apps[rt.current_index].process_name.clone();
+                    slots[slot as usize] = if process.is_empty() { None } else { Some(process) };
+                }
+            }
         }
     }
 }
