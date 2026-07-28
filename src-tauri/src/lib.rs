@@ -4,7 +4,7 @@ mod com;
 mod commands;
 mod config;
 mod diagnostics;
-mod modules;
+pub mod modules;
 mod monitor;
 mod protocol;
 mod serial;
@@ -41,6 +41,7 @@ pub struct AppState {
     pub action_manager: Arc<Mutex<ActionManager>>,
     pub monitor_slots: Arc<Mutex<[Option<String>; 4]>>,
     pub spotify_client: Arc<AsyncMutex<Option<AuthCodePkceSpotify>>>,
+    pub encoder_switcher_states: Vec<Arc<Mutex<modules::app_switcher::AppSwitcherRuntime>>>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -89,6 +90,9 @@ pub fn run() {
             action_manager,
             monitor_slots,
             spotify_client,
+            encoder_switcher_states: (0..4)
+                .map(|_| Arc::new(Mutex::new(modules::app_switcher::AppSwitcherRuntime::default())))
+                .collect(),
         })
         // 2. Den Command fur das Frontend registrieren
         .invoke_handler(tauri::generate_handler![

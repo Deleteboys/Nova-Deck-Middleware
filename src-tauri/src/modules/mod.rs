@@ -1,3 +1,4 @@
+pub(crate) mod app_switcher;
 pub(crate) mod app_volume_action;
 pub(crate) mod foreground_volume;
 pub(crate) mod master_volume;

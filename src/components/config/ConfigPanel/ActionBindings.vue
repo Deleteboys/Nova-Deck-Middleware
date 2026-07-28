@@ -122,6 +122,26 @@
               @update:step="(val) => updateActionStep(item.triggerValue, val)"
           />
 
+          <div v-if="item.isAppVolume" class="d-flex align-center justify-space-between px-1 pt-1">
+            <span class="text-caption text-grey">App-Wechsler koppeln</span>
+            <v-switch
+                :model-value="item.useSwitcher"
+                density="compact"
+                hide-details
+                color="primary"
+                class="flex-shrink-0"
+                style="margin-top: 0"
+                @update:model-value="(val) => updateUseSwitcher(item.triggerValue, !!val)"
+            />
+          </div>
+
+          <div v-if="item.useSwitcher" class="px-1 pb-1">
+            <span class="text-caption text-grey-darken-1">
+              <v-icon size="x-small" color="primary">mdi-swap-horizontal-circle</v-icon>
+              Verwendet das aktuell gewählte Programm des App-Wechslers
+            </span>
+          </div>
+
           <ActionSettingsProcess
               v-if="item.needsProcess"
               :process-name="item.process_name"
@@ -146,6 +166,14 @@
               @update:action-key="(val) => updateActionKey(item.triggerValue, val)"
           />
 
+          <ActionSettingsAppSwitcher
+              v-if="item.isAppSwitcherCycle"
+              :apps="item.apps"
+              :shared-icon="item.sharedIcon"
+              :processes="activeProcesses"
+              @update:apps="(apps, sharedIcon) => updateSwitcherApps(item.triggerValue, apps, sharedIcon)"
+          />
+
         </div>
         <ActionSettingsInfo v-else />
       </v-card>
@@ -161,7 +189,9 @@ import {
   removeActionMapping,
   getAudioDevices,
   type TriggerType,
-  type AudioDeviceInfo, getActiveAudioProcesses
+  type AudioDeviceInfo,
+  type AppSwitcherEntry,
+  getActiveAudioProcesses
 } from '@/services/streamdeckCommands';
 
 import ActionSettingsKey from './ActionSettings/ActionSettingsKey.vue';
@@ -171,6 +201,7 @@ import ActionSettingsProcess from './ActionSettings/ActionSettingsProcess.vue';
 import ActionSettingsAudio from './ActionSettings/ActionSettingsAudio.vue';
 import ActionSettingsInfo from './ActionSettings/ActionSettingsInfo.vue';
 import ActionSettingsMacro from "@/components/config/ConfigPanel/ActionSettings/ActionSettingsMacro.vue";
+import ActionSettingsAppSwitcher from "@/components/config/ConfigPanel/ActionSettings/ActionSettingsAppSwitcher.vue";
 
 const store = useStreamDeckStore();
 
@@ -212,6 +243,13 @@ const categorizedActions = [
     items: [
       { title: 'Current Window (Volume)', icon: 'mdi-monitor-speaker', config: { type: 'ForegroundVolume', step: 5 } },
       { title: 'Aktuelles Fenster (Toggle)', icon: 'mdi-speaker-off', config: { type: 'ToggleForegroundAudio' } },
+    ]
+  },
+  {
+    name: 'App-Wechsler',
+    icon: 'mdi-swap-horizontal-circle',
+    items: [
+      { title: 'App-Wechsler', icon: 'mdi-swap-horizontal-circle', config: { type: 'AppSwitcherCycle', apps: [], shared_icon: null, direction: 1 } },
     ]
   },
   {
@@ -261,14 +299,17 @@ const boundActionsList = computed(() => {
     const config = setup?.config;
     const type = config?.type;
 
-    const hasStep = config && 'step' in config;
+    const isAppVolume = type === 'AppVolume';
+    const useSwitcher = isAppVolume && !!(config as any)?.use_switcher;
+    const hasStep = config && 'step' in config && type !== 'AppSwitcherCycle';
     const hasKey = config && 'key' in config && type === 'PressKey';
     const hasMediaKey = config && 'key' in config && type === 'MediaControl';
     const isCustomMacro = config && 'key' in config && type === 'CustomMacro';
-    const needsProcess = type === 'ToggleAppAudio' || type === 'AppVolume' || type === 'ToggleAppMedia';
+    const needsProcess = (isAppVolume && !useSwitcher) || type === 'ToggleAppAudio' || type === 'ToggleAppMedia';
     const isAudioToggle = type === 'SwitchAudioDevice';
+    const isAppSwitcherCycle = type === 'AppSwitcherCycle';
 
-    const hasSettings = hasStep || hasKey || hasMediaKey || needsProcess || isAudioToggle || isCustomMacro;
+    const hasSettings = hasStep || hasKey || hasMediaKey || needsProcess || isAudioToggle || isCustomMacro || isAppSwitcherCycle;
 
     return {
       triggerValue: triggerValue as TriggerType,
@@ -285,6 +326,11 @@ const boundActionsList = computed(() => {
       isAudioToggle,
       device1: config?.device1,
       device2: config?.device2,
+      isAppSwitcherCycle,
+      apps: isAppSwitcherCycle ? (config as any).apps as AppSwitcherEntry[] : [],
+      sharedIcon: isAppSwitcherCycle ? (config as any).shared_icon as string | null : null,
+      isAppVolume,
+      useSwitcher,
       hasSettings
     };
   });
@@ -292,7 +338,14 @@ const boundActionsList = computed(() => {
   const isEncoder = store.selectedElementId.startsWith('enc-');
   const order = isEncoder ? ENCODER_ORDER : BUTTON_ORDER;
 
-  return list.sort((a, b) => order.indexOf(a.triggerValue) - order.indexOf(b.triggerValue));
+  // AppSwitcherCycle auf TurnRight+TurnLeft: TurnLeft ausblenden, nur TurnRight zeigen
+  const bothCycle =
+      actionsMap['TurnRight']?.config?.type === 'AppSwitcherCycle' &&
+      actionsMap['TurnLeft']?.config?.type === 'AppSwitcherCycle';
+
+  return list
+      .filter(item => !(bothCycle && item.triggerValue === 'TurnLeft'))
+      .sort((a, b) => order.indexOf(a.triggerValue) - order.indexOf(b.triggerValue));
 });
 
 const fetchProcesses = async () => {
@@ -305,6 +358,7 @@ const fetchAudioDevices = async () => {
 
 const assignAction = async (action: any) => {
   if (!store.selectedElementId) return;
+
   const usedTriggers = Object.keys(store.activeProfile?.keys[store.selectedElementId]?.actions || {});
   let targetTrigger: TriggerType = triggerOptions.value[0].value as TriggerType;
 
@@ -318,6 +372,9 @@ const assignAction = async (action: any) => {
   const config = { ...action.config };
   if ('step' in config) {
     config.step = (targetTrigger === 'TurnLeft' || targetTrigger === 'PushTurnLeft') ? -5 : 5;
+  }
+  if (config.type === 'AppSwitcherCycle') {
+    config.direction = (targetTrigger === 'TurnLeft' || targetTrigger === 'PushTurnLeft') ? -1 : 1;
   }
 
   store.updateElementAction(store.selectedElementId, targetTrigger, { action: action.title, icon: action.icon, config: config });
@@ -377,10 +434,43 @@ const updateActionAudioDevices = async (trigger: TriggerType, device1: string, d
   }
 };
 
+const updateUseSwitcher = async (trigger: TriggerType, useSwitcher: boolean) => {
+  if (!store.selectedElementId) return;
+  const currentAction = store.activeProfile?.keys[store.selectedElementId]?.actions?.[trigger];
+  if (currentAction) {
+    const updatedConfig = { ...currentAction.config, use_switcher: useSwitcher };
+    store.updateElementAction(store.selectedElementId, trigger, { ...currentAction, config: updatedConfig });
+    try { await updateActionMapping(store.selectedElementId, trigger, updatedConfig); } catch (e) { console.error(e); }
+  }
+};
+
+const updateSwitcherApps = async (trigger: TriggerType, apps: AppSwitcherEntry[], sharedIcon: string | null) => {
+  if (!store.selectedElementId) return;
+  const elementActions = store.activeProfile?.keys[store.selectedElementId]?.actions || {};
+  for (const t of Object.keys(elementActions) as TriggerType[]) {
+    const currentAction = elementActions[t];
+    if (currentAction?.config?.type === 'AppSwitcherCycle') {
+      const updatedConfig = { ...currentAction.config, apps, shared_icon: sharedIcon };
+      store.updateElementAction(store.selectedElementId, t, { ...currentAction, config: updatedConfig });
+      try { await updateActionMapping(store.selectedElementId, t, updatedConfig); } catch (e) { console.error(e); }
+    }
+  }
+};
+
 const unbindSpecificAction = async (triggerToDelete: TriggerType) => {
-  if (store.selectedElementId) {
-    store.clearElementAction(store.selectedElementId, triggerToDelete);
-    try { await removeActionMapping(store.selectedElementId, triggerToDelete); } catch (e) { console.error(e); }
+  if (!store.selectedElementId) return;
+  store.clearElementAction(store.selectedElementId, triggerToDelete);
+  try { await removeActionMapping(store.selectedElementId, triggerToDelete); } catch (e) { console.error(e); }
+
+  // AppSwitcherCycle: Gegenseite ebenfalls entfernen
+  const paired: Partial<Record<TriggerType, TriggerType>> = { TurnRight: 'TurnLeft', TurnLeft: 'TurnRight' };
+  const pairedTrigger = paired[triggerToDelete];
+  if (pairedTrigger) {
+    const pairedAction = store.activeProfile?.keys[store.selectedElementId]?.actions?.[pairedTrigger];
+    if (pairedAction?.config?.type === 'AppSwitcherCycle') {
+      store.clearElementAction(store.selectedElementId, pairedTrigger);
+      try { await removeActionMapping(store.selectedElementId, pairedTrigger); } catch (e) { console.error(e); }
+    }
   }
 };
 

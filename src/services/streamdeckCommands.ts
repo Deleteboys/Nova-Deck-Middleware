@@ -17,6 +17,11 @@ export type AudioDeviceInfo = {
     name: string;
 };
 
+export type AppSwitcherEntry = {
+    process_name: string;
+    icon?: string | null;
+};
+
 export type ActionConfig =
     | { type: 'PressKey'; key: string }
     | { type: 'CustomMacro'; key: string }
@@ -25,11 +30,12 @@ export type ActionConfig =
     | { type: 'MasterVolume'; step: number }
     | { type: 'ToggleAppAudio'; process_name: string }
     | { type: 'ToggleMasterMute' }
-    | { type: 'AppVolume'; process_name: string; step: number;  }
+    | { type: 'AppVolume'; process_name: string; step: number; use_switcher?: boolean }
     | { type: 'ForegroundVolume'; step: number; }
     | { type: 'ToggleForegroundAudio' }
     | { type: 'SwitchAudioDevice'; device1: string; device2: string }
-    | { type: 'SpotifyLikeAction';};
+    | { type: 'SpotifyLikeAction' }
+    | { type: 'AppSwitcherCycle'; apps: AppSwitcherEntry[]; shared_icon?: string | null; direction: number };
 
 export type FirmwareUpdateInfo = {
     version: string;

@@ -102,7 +102,8 @@ const isActionConfig = (value: unknown): value is ActionConfig => {
         config.type === 'ToggleForegroundAudio' ||
         config.type === 'ToggleAppMedia' ||
         config.type === 'SwitchAudioDevice' ||
-        config.type === 'SpotifyLikeAction'
+        config.type === 'SpotifyLikeAction' ||
+        config.type === 'AppSwitcherCycle'
     )
 }
 
