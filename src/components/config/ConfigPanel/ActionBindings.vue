@@ -122,7 +122,7 @@
               @update:step="(val) => updateActionStep(item.triggerValue, val)"
           />
 
-          <div v-if="item.isAppVolume" class="d-flex align-center justify-space-between px-1 pt-1">
+          <div v-if="item.isAppVolume || item.isToggleAppAudio" class="d-flex align-center justify-space-between px-1 pt-1">
             <span class="text-caption text-grey">App-Wechsler koppeln</span>
             <v-switch
                 :model-value="item.useSwitcher"
@@ -171,6 +171,7 @@
               :apps="item.apps"
               :shared-icon="item.sharedIcon"
               :processes="activeProcesses"
+              :is-encoder="!!store.selectedElementId?.startsWith('enc-')"
               @update:apps="(apps, sharedIcon) => updateSwitcherApps(item.triggerValue, apps, sharedIcon)"
           />
 
@@ -300,16 +301,17 @@ const boundActionsList = computed(() => {
     const type = config?.type;
 
     const isAppVolume = type === 'AppVolume';
-    const useSwitcher = isAppVolume && !!(config as any)?.use_switcher;
+    const isToggleAppAudio = type === 'ToggleAppAudio';
+    const useSwitcher = (isAppVolume || isToggleAppAudio) && !!(config as any)?.use_switcher;
     const hasStep = config && 'step' in config && type !== 'AppSwitcherCycle';
     const hasKey = config && 'key' in config && type === 'PressKey';
     const hasMediaKey = config && 'key' in config && type === 'MediaControl';
     const isCustomMacro = config && 'key' in config && type === 'CustomMacro';
-    const needsProcess = (isAppVolume && !useSwitcher) || type === 'ToggleAppAudio' || type === 'ToggleAppMedia';
+    const needsProcess = (isAppVolume && !useSwitcher) || (isToggleAppAudio && !useSwitcher) || type === 'ToggleAppMedia';
     const isAudioToggle = type === 'SwitchAudioDevice';
     const isAppSwitcherCycle = type === 'AppSwitcherCycle';
 
-    const hasSettings = hasStep || hasKey || hasMediaKey || needsProcess || isAudioToggle || isCustomMacro || isAppSwitcherCycle;
+    const hasSettings = hasStep || hasKey || hasMediaKey || needsProcess || isAudioToggle || isCustomMacro || isAppSwitcherCycle || isToggleAppAudio;
 
     return {
       triggerValue: triggerValue as TriggerType,
@@ -330,6 +332,7 @@ const boundActionsList = computed(() => {
       apps: isAppSwitcherCycle ? (config as any).apps as AppSwitcherEntry[] : [],
       sharedIcon: isAppSwitcherCycle ? (config as any).shared_icon as string | null : null,
       isAppVolume,
+      isToggleAppAudio,
       useSwitcher,
       hasSettings
     };

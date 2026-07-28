@@ -28,7 +28,7 @@ export type ActionConfig =
     | { type: 'MediaControl'; key: string }
     | { type: 'SpotifyVolume'; step: number }
     | { type: 'MasterVolume'; step: number }
-    | { type: 'ToggleAppAudio'; process_name: string }
+    | { type: 'ToggleAppAudio'; process_name: string; use_switcher?: boolean }
     | { type: 'ToggleMasterMute' }
     | { type: 'AppVolume'; process_name: string; step: number; use_switcher?: boolean }
     | { type: 'ForegroundVolume'; step: number; }

@@ -29,6 +29,7 @@ fn icon_type_to_str(icon: IconType) -> &'static str {
         IconType::PlayPause => "PLAY_PAUSE",
         IconType::Light => "LIGHT",
         IconType::ActiveWindow => "ACTIVE_WINDOW",
+        IconType::Jellyfin => "JELLYFIN",
         IconType::None => "NONE",
     }
 }

@@ -33,7 +33,7 @@
             <div style="width: 130px;">
               <v-select
                   v-model="slot.icon"
-                  :items="['MASTER', 'SPOTIFY', 'DISCORD', 'BROWSER','MIC','CAMERA','PLAY_PAUSE', 'LIGHT', 'ACTIVE_WINDOW', 'NONE']"
+                  :items="['MASTER', 'SPOTIFY', 'DISCORD', 'BROWSER','MIC','CAMERA','PLAY_PAUSE', 'LIGHT', 'ACTIVE_WINDOW','JELLYFIN', 'NONE']"
                   variant="underlined"
                   density="compact"
                   hide-details
@@ -98,6 +98,7 @@ const oledSlots = ref([
   { icon: 'PLAY_PAUSE', process: '' },
   { icon: 'LIGHT', process: '' },
   { icon: 'ACTIVE_WINDOW', process: '' },
+  { icon: 'JELLYFIN', process: '' },
 ]);
 
 const fetchProcesses = async () => {

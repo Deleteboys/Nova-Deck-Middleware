@@ -10,6 +10,7 @@ pub enum IconType {
     PlayPause,
     Light,
     ActiveWindow,
+    Jellyfin,
     None,
 }
 

@@ -38,7 +38,7 @@ pub enum ActionConfig {
     SpotifyVolume { step: i8 },
     SwitchAudioDevice { device1: String, device2: String },
     MasterVolume { step: i8 },
-    ToggleAppAudio { process_name: String },
+    ToggleAppAudio { process_name: String, use_switcher: Option<bool> },
     ToggleMasterMute,
     AppVolume { process_name: String, step: i8, use_switcher: Option<bool> },
     ForegroundVolume { step: i8 },
@@ -129,8 +129,14 @@ fn create_action(
         ActionConfig::MasterVolume { step } => {
             Box::new(modules::master_volume::MasterVolumeAction { step, tx })
         }
-        ActionConfig::ToggleAppAudio { process_name } => {
-            Box::new(modules::toggle_app_audio::ToggleAppAudioAction { process_name })
+        ActionConfig::ToggleAppAudio { process_name, use_switcher } => {
+            let switcher_runtime = if use_switcher.unwrap_or(false) {
+                let id = encoder_id.unwrap_or(0) as usize;
+                Some(Arc::clone(&switcher_states[id]))
+            } else {
+                None
+            };
+            Box::new(modules::toggle_app_audio::ToggleAppAudioAction { process_name, switcher_runtime })
         }
         ActionConfig::ToggleMasterMute => {
             Box::new(modules::toggle_master_mute::ToggleMasterMuteAction {})
@@ -180,21 +186,20 @@ fn create_action(
                     icon: e.icon.clone(),
                 }).collect();
                 rt.shared_icon = shared_icon;
-                if !rt.apps.is_empty() {
-                    let icon_str = rt.apps[rt.current_index]
-                        .icon.clone()
-                        .or_else(|| rt.shared_icon.clone())
-                        .unwrap_or_default();
-                    let icon = modules::app_switcher::parse_icon_str(&icon_str);
-                    let _ = tx.send(HostToPico::SetIconSlot {
-                        slot: encoder_id.unwrap_or(0),
-                        icon,
-                    });
+                if let Some(slot) = encoder_id {
+                    if !rt.apps.is_empty() {
+                        let icon_str = rt.apps[rt.current_index]
+                            .icon.clone()
+                            .or_else(|| rt.shared_icon.clone())
+                            .unwrap_or_default();
+                        let icon = modules::app_switcher::parse_icon_str(&icon_str);
+                        let _ = tx.send(HostToPico::SetIconSlot { slot, icon });
+                    }
                 }
             }
             Box::new(modules::app_switcher::AppSwitcherCycleAction {
                 direction,
-                encoder_slot: encoder_id.unwrap_or(0),
+                encoder_slot: encoder_id,
                 runtime,
                 tx,
             })
@@ -262,6 +267,7 @@ fn parse_icon(icon_str: &str) -> IconType {
         "PLAY_PAUSE" => IconType::PlayPause,
         "LIGHT" => IconType::Light,
         "ACTIVE_WINDOW" => IconType::ActiveWindow,
+        "JELLYFIN" => IconType::Jellyfin,
         _ => IconType::None,
     }
 }
