@@ -172,7 +172,7 @@
               :shared-icon="item.sharedIcon"
               :processes="activeProcesses"
               :is-encoder="!!store.selectedElementId?.startsWith('enc-')"
-              @update:apps="(apps, sharedIcon) => updateSwitcherApps(item.triggerValue, apps, sharedIcon)"
+              @update:apps="(apps, sharedIcon) => updateSwitcherApps(apps, sharedIcon)"
           />
 
         </div>
@@ -447,7 +447,7 @@ const updateUseSwitcher = async (trigger: TriggerType, useSwitcher: boolean) => 
   }
 };
 
-const updateSwitcherApps = async (trigger: TriggerType, apps: AppSwitcherEntry[], sharedIcon: string | null) => {
+const updateSwitcherApps = async (apps: AppSwitcherEntry[], sharedIcon: string | null) => {
   if (!store.selectedElementId) return;
   const elementActions = store.activeProfile?.keys[store.selectedElementId]?.actions || {};
   for (const t of Object.keys(elementActions) as TriggerType[]) {
