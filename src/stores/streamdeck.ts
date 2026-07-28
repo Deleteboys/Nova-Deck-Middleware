@@ -184,6 +184,38 @@ export const useStreamDeckStore = defineStore('streamdeck', {
             if (!slots) return;
 
             for (let i = 0; i < slots.length; i++) {
+                let isAppSwitcher = false;
+
+                // Neuer Check: Prüfe ALLE Keys im aktiven Profil, ob ein App Switcher diesen Slot steuert
+                if (this.activeProfile?.keys) {
+                    for (const [elementId, keyConfig] of Object.entries(this.activeProfile.keys)) {
+                        if (!keyConfig.actions) continue;
+
+                        const mapsToThisSlot = Object.values(keyConfig.actions).some((setup: any) => {
+                            if (setup?.config?.type === 'AppSwitcherCycle') {
+                                // Bestimme den Ziel-Slot analog zur Logik im Rust-Backend (encoder_id_from_element)
+                                let targetSlot = 0;
+                                if (elementId.startsWith('enc-')) {
+                                    const parsed = parseInt(elementId.replace('enc-', ''), 10);
+                                    if (!isNaN(parsed)) targetSlot = parsed;
+                                }
+                                return targetSlot === i;
+                            }
+                            return false;
+                        });
+
+                        if (mapsToThisSlot) {
+                            isAppSwitcher = true;
+                            break;
+                        }
+                    }
+                }
+
+                // Ist ein App Switcher aktiv, überspringen wir den statischen Sync für diesen Slot
+                if (isAppSwitcher) {
+                    continue;
+                }
+
                 try {
                     await invoke("update_monitor_mapping", {
                         slot: i,

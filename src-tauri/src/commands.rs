@@ -189,12 +189,22 @@ fn create_action(
                 rt.shared_icon = shared_icon;
                 if let Some(slot) = encoder_id {
                     if !rt.apps.is_empty() {
+                        // Fix 1: Verhindert Abstürze, falls Apps aus der Config entfernt wurden
+                        if rt.current_index >= rt.apps.len() {
+                            rt.current_index = 0;
+                        }
+
                         let icon_str = rt.apps[rt.current_index]
                             .icon.clone()
                             .or_else(|| rt.shared_icon.clone())
                             .unwrap_or_default();
                         let icon = modules::app_switcher::parse_icon_str(&icon_str);
                         let _ = tx.send(HostToPico::SetIconSlot { slot, icon });
+
+                        // Fix 2: Stellt sicher, dass der Audio-Mixer nach einem Sync das aktive Programm kennt
+                        let mut m_slots = monitor_slots.lock().unwrap();
+                        let process = rt.apps[rt.current_index].process_name.clone();
+                        m_slots[slot as usize] = if process.is_empty() { None } else { Some(process) };
                     }
                 }
             }

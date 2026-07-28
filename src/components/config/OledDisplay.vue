@@ -28,6 +28,7 @@ let unlistenIconUpdate: (() => void) | null = null;
 
 // Fallback-Daten
 const VOLUMES = [50, 65, 80, 35];
+let audioSaveTimeout: ReturnType<typeof setTimeout> | null = null;
 const defaultIcons = ['MASTER', 'SPOTIFY', 'DISCORD', 'BROWSER','MIC','CAMERA','PLAY_PAUSE', 'LIGHT', 'ACTIVE_WINDOW', 'JELLYFIN','NONE'];
 
 const ICONS: Record<string, string[]> = {
@@ -333,6 +334,23 @@ onMounted(async () => {
     const updated = [...runtimeIcons.value];
     updated[slot] = icon;
     runtimeIcons.value = updated;
+
+    if (store.activeProfile) {
+      if (!store.activeProfile.keys['oled-display']) {
+        store.activeProfile.keys['oled-display'] = { slots: [] };
+      }
+      const slots = store.activeProfile.keys['oled-display'].slots || [];
+
+      while (slots.length <= slot) {
+        slots.push({ icon: 'NONE', process: '' });
+      }
+
+      slots[slot].icon = icon;
+      store.activeProfile.keys['oled-display'].slots = [...slots];
+
+      // NEU: Das Icon sofort in den LocalStorage speichern
+      store.persistState();
+    }
   });
 
   unlistenAudioUpdate = await listen('audio-update', (event: any) => {
@@ -344,17 +362,21 @@ onMounted(async () => {
       }
       const slots = store.activeProfile.keys['oled-display'].slots || [];
 
-      // Auffüllen, falls der Array noch zu klein ist
       while (slots.length <= slot) {
         slots.push({ icon: 'NONE', process: '' });
       }
 
-      // Werte setzen
       slots[slot].value = volume;
       slots[slot].muted = muted;
-
-      // Neues Array zuweisen, damit Vue die Änderung garantiert registriert
       store.activeProfile.keys['oled-display'].slots = [...slots];
+
+      // NEU: Verzögertes Speichern der Lautstärke.
+      // Speichert 500ms nach der letzten Änderung den Wert in den LocalStorage,
+      // damit er ein Minimieren und Neu-Öffnen der GUI überlebt.
+      if (audioSaveTimeout) clearTimeout(audioSaveTimeout);
+      audioSaveTimeout = setTimeout(() => {
+        store.persistState();
+      }, 500);
     }
   });
 });
