@@ -122,6 +122,27 @@
               @update:step="(val) => updateActionStep(item.triggerValue, val)"
           />
 
+          <div v-if="item.supportsSnap" class="d-flex align-center justify-space-between px-1 pt-1">
+            <div class="d-flex align-center">
+              <span class="text-caption text-grey">Am Raster einrasten</span>
+              <span class="d-inline-flex align-center ml-1 text-help">
+                <v-icon icon="mdi-information-outline" size="x-small" color="grey" />
+                <v-tooltip activator="parent" location="top" open-delay="250" max-width="260">
+                  Springt auf runde Werte, statt exakt um das Intervall zu ändern
+                </v-tooltip>
+              </span>
+            </div>
+            <v-switch
+                :model-value="item.snap"
+                density="compact"
+                hide-details
+                color="primary"
+                class="flex-shrink-0"
+                style="margin-top: 0"
+                @update:model-value="(val) => updateSnap(item.triggerValue, !!val)"
+            />
+          </div>
+
           <div v-if="item.isAppVolume || item.isToggleAppAudio" class="d-flex align-center justify-space-between px-1 pt-1">
             <span class="text-caption text-grey">App-Wechsler koppeln</span>
             <v-switch
@@ -235,7 +256,7 @@ const categorizedActions = [
     name: 'App Steuerung',
     icon: 'mdi-application-cog',
     items: [
-      { title: 'App Audio (Volume)', icon: 'mdi-volume-plus', config: { type: 'AppVolume', process_name: '', step: 5 } },
+      { title: 'App Audio (Volume)', icon: 'mdi-volume-plus', config: { type: 'AppVolume', process_name: '', step: 5, snap: false } },
       { title: 'App Audio (Toggle)', icon: 'mdi-volume-off', config: { type: 'ToggleAppAudio', process_name: '' } },
       { title: 'App Media (Play/Pause)', icon: 'mdi-play-pause', config: { type: 'ToggleAppMedia', process_name: '' } },
     ]
@@ -244,7 +265,7 @@ const categorizedActions = [
     name: 'Fokus Fenster',
     icon: 'mdi-window-maximize',
     items: [
-      { title: 'Current Window (Volume)', icon: 'mdi-monitor-speaker', config: { type: 'ForegroundVolume', step: 5 } },
+      { title: 'Current Window (Volume)', icon: 'mdi-monitor-speaker', config: { type: 'ForegroundVolume', step: 5, snap: false } },
       { title: 'Aktuelles Fenster (Toggle)', icon: 'mdi-speaker-off', config: { type: 'ToggleForegroundAudio' } },
     ]
   },
@@ -305,6 +326,8 @@ const boundActionsList = computed(() => {
     const isAppVolume = type === 'AppVolume';
     const isToggleAppAudio = type === 'ToggleAppAudio';
     const useSwitcher = (isAppVolume || isToggleAppAudio) && !!(config as any)?.use_switcher;
+    const supportsSnap = isAppVolume || type === 'ForegroundVolume';
+    const snap = supportsSnap && !!(config as any)?.snap;
     const hasStep = config && 'step' in config && type !== 'AppSwitcherCycle';
     const hasKey = config && 'key' in config && type === 'PressKey';
     const hasMediaKey = config && 'key' in config && type === 'MediaControl';
@@ -313,7 +336,7 @@ const boundActionsList = computed(() => {
     const isAudioToggle = type === 'SwitchAudioDevice';
     const isAppSwitcherCycle = type === 'AppSwitcherCycle';
 
-    const hasSettings = hasStep || hasKey || hasMediaKey || needsProcess || isAudioToggle || isCustomMacro || isAppSwitcherCycle || isToggleAppAudio;
+    const hasSettings = hasStep || hasKey || hasMediaKey || needsProcess || isAudioToggle || isCustomMacro || isAppSwitcherCycle || isToggleAppAudio || supportsSnap;
 
     return {
       triggerValue: triggerValue as TriggerType,
@@ -337,6 +360,8 @@ const boundActionsList = computed(() => {
       isAppVolume,
       isToggleAppAudio,
       useSwitcher,
+      supportsSnap,
+      snap,
       hasSettings
     };
   });
@@ -445,6 +470,16 @@ const updateUseSwitcher = async (trigger: TriggerType, useSwitcher: boolean) => 
   const currentAction = store.activeProfile?.keys[store.selectedElementId]?.actions?.[trigger];
   if (currentAction) {
     const updatedConfig = { ...currentAction.config, use_switcher: useSwitcher };
+    store.updateElementAction(store.selectedElementId, trigger, { ...currentAction, config: updatedConfig });
+    try { await updateActionMapping(store.selectedElementId, trigger, updatedConfig); } catch (e) { console.error(e); }
+  }
+};
+
+const updateSnap = async (trigger: TriggerType, snap: boolean) => {
+  if (!store.selectedElementId) return;
+  const currentAction = store.activeProfile?.keys[store.selectedElementId]?.actions?.[trigger];
+  if (currentAction) {
+    const updatedConfig = { ...currentAction.config, snap };
     store.updateElementAction(store.selectedElementId, trigger, { ...currentAction, config: updatedConfig });
     try { await updateActionMapping(store.selectedElementId, trigger, updatedConfig); } catch (e) { console.error(e); }
   }

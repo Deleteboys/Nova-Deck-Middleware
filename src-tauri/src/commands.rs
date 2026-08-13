@@ -32,18 +32,47 @@ pub struct AppSwitcherEntry {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(tag = "type")]
 pub enum ActionConfig {
-    PressKey { key: String },
-    CustomMacro { key: String },
-    MediaControl { key: String },
-    SpotifyVolume { step: i8 },
-    SwitchAudioDevice { device1: String, device2: String },
-    MasterVolume { step: i8 },
-    ToggleAppAudio { process_name: String, use_switcher: Option<bool> },
+    PressKey {
+        key: String,
+    },
+    CustomMacro {
+        key: String,
+    },
+    MediaControl {
+        key: String,
+    },
+    SpotifyVolume {
+        step: i8,
+    },
+    SwitchAudioDevice {
+        device1: String,
+        device2: String,
+    },
+    MasterVolume {
+        step: i8,
+    },
+    ToggleAppAudio {
+        process_name: String,
+        use_switcher: Option<bool>,
+    },
     ToggleMasterMute,
-    AppVolume { process_name: String, step: i8, use_switcher: Option<bool> },
-    ForegroundVolume { step: i8 },
+    AppVolume {
+        process_name: String,
+        step: i8,
+        use_switcher: Option<bool>,
+        // Ältere Configs / Frontend-Payloads ohne dieses Feld bleiben ladbar
+        #[serde(default)]
+        snap: bool,
+    },
+    ForegroundVolume {
+        step: i8,
+        #[serde(default)]
+        snap: bool,
+    },
     ToggleForegroundAudio,
-    ToggleAppMedia { process_name: String },
+    ToggleAppMedia {
+        process_name: String,
+    },
     SpotifyLikeAction,
     AppSwitcherCycle {
         apps: Vec<AppSwitcherEntry>,
@@ -133,19 +162,30 @@ fn create_action(
         ActionConfig::MasterVolume { step } => {
             Box::new(modules::master_volume::MasterVolumeAction { step, tx })
         }
-        ActionConfig::ToggleAppAudio { process_name, use_switcher } => {
+        ActionConfig::ToggleAppAudio {
+            process_name,
+            use_switcher,
+        } => {
             let switcher_runtime = if use_switcher.unwrap_or(false) {
                 let id = encoder_id.unwrap_or(0) as usize;
                 Some(Arc::clone(&switcher_states[id]))
             } else {
                 None
             };
-            Box::new(modules::toggle_app_audio::ToggleAppAudioAction { process_name, switcher_runtime })
+            Box::new(modules::toggle_app_audio::ToggleAppAudioAction {
+                process_name,
+                switcher_runtime,
+            })
         }
         ActionConfig::ToggleMasterMute => {
             Box::new(modules::toggle_master_mute::ToggleMasterMuteAction {})
         }
-        ActionConfig::AppVolume { process_name, step, use_switcher } => {
+        ActionConfig::AppVolume {
+            process_name,
+            step,
+            use_switcher,
+            snap,
+        } => {
             let switcher_runtime = if use_switcher.unwrap_or(false) {
                 let id = encoder_id.unwrap_or(0) as usize;
                 Some(Arc::clone(&switcher_states[id]))
@@ -157,10 +197,11 @@ fn create_action(
                 step,
                 tx,
                 switcher_runtime,
+                snap,
             })
         }
-        ActionConfig::ForegroundVolume { step } => {
-            Box::new(modules::foreground_volume::ForegroundVolumeAction { step, tx })
+        ActionConfig::ForegroundVolume { step, snap } => {
+            Box::new(modules::foreground_volume::ForegroundVolumeAction { step, tx, snap })
         }
         ActionConfig::ToggleForegroundAudio => {
             Box::new(modules::toggle_foreground_audio::ToggleForegroundAudioAction {})
@@ -180,15 +221,23 @@ fn create_action(
         ActionConfig::SpotifyLikeAction => Box::new(modules::spotify_like::SpotifyLikeAction {
             spotify: spotify_client,
         }),
-        ActionConfig::AppSwitcherCycle { apps, shared_icon, direction, hide_closed_apps } => {
+        ActionConfig::AppSwitcherCycle {
+            apps,
+            shared_icon,
+            direction,
+            hide_closed_apps,
+        } => {
             let id = encoder_id.unwrap_or(0) as usize;
             let runtime = Arc::clone(&switcher_states[id]);
             {
                 let mut rt = runtime.lock().unwrap();
-                rt.apps = apps.iter().map(|e| AppEntry {
-                    process_name: e.process_name.clone(),
-                    icon: e.icon.clone(),
-                }).collect();
+                rt.apps = apps
+                    .iter()
+                    .map(|e| AppEntry {
+                        process_name: e.process_name.clone(),
+                        icon: e.icon.clone(),
+                    })
+                    .collect();
                 rt.shared_icon = shared_icon;
                 if let Some(slot) = encoder_id {
                     if !rt.apps.is_empty() {
@@ -198,7 +247,8 @@ fn create_action(
                         }
 
                         let icon_str = rt.apps[rt.current_index]
-                            .icon.clone()
+                            .icon
+                            .clone()
                             .or_else(|| rt.shared_icon.clone())
                             .unwrap_or_default();
                         let icon = modules::app_switcher::parse_icon_str(&icon_str);
@@ -207,7 +257,11 @@ fn create_action(
                         // Fix 2: Stellt sicher, dass der Audio-Mixer nach einem Sync das aktive Programm kennt
                         let mut m_slots = monitor_slots.lock().unwrap();
                         let process = rt.apps[rt.current_index].process_name.clone();
-                        m_slots[slot as usize] = if process.is_empty() { None } else { Some(process) };
+                        m_slots[slot as usize] = if process.is_empty() {
+                            None
+                        } else {
+                            Some(process)
+                        };
                     }
                 }
             }
@@ -322,7 +376,14 @@ pub fn update_mapping(state: State<AppState>, payload: MappingPayload) -> Result
 
     let trigger = trigger_from_payload(&payload.element_id, &payload.trigger_type)?;
     let encoder_id = encoder_id_from_element(&payload.element_id);
-    let action = create_action(payload.action_config, tx, spotify_ptr, encoder_id, &state.encoder_switcher_states, Arc::clone(&state.monitor_slots));
+    let action = create_action(
+        payload.action_config,
+        tx,
+        spotify_ptr,
+        encoder_id,
+        &state.encoder_switcher_states,
+        Arc::clone(&state.monitor_slots),
+    );
 
     if let Ok(mut manager) = state.action_manager.lock() {
         manager.register(trigger, action);

@@ -30,8 +30,8 @@ export type ActionConfig =
     | { type: 'MasterVolume'; step: number }
     | { type: 'ToggleAppAudio'; process_name: string; use_switcher?: boolean }
     | { type: 'ToggleMasterMute' }
-    | { type: 'AppVolume'; process_name: string; step: number; use_switcher?: boolean }
-    | { type: 'ForegroundVolume'; step: number; }
+    | { type: 'AppVolume'; process_name: string; step: number; use_switcher?: boolean; snap?: boolean }
+    | { type: 'ForegroundVolume'; step: number; snap?: boolean }
     | { type: 'ToggleForegroundAudio' }
     | { type: 'SwitchAudioDevice'; device1: string; device2: string }
     | { type: 'SpotifyLikeAction' }

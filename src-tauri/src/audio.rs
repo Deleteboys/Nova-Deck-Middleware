@@ -199,7 +199,37 @@ unsafe fn foreground_process_id() -> u32 {
     pid
 }
 
-pub unsafe fn adjust_volume_for_pids(target_pids: &[u32], step: i8) -> windows::core::Result<bool> {
+fn calculate_next_position(start: i32, step: i32) -> i32 {
+    if step == 0 {
+        return start.clamp(0, 100);
+    }
+
+    let is_even = step % 2 == 0;
+    let grid = if is_even { 5 } else { 10 };
+    let org_next = start + step;
+
+    if is_even && start % 10 == 5 {
+        let delta = if step > 0 { 1 } else { -1 };
+        return (start + delta).clamp(0, 100);
+    }
+
+    let crossed_boundary = (start / grid) != (org_next / grid);
+    let is_on_boundary = (start % grid) == 0;
+
+    let target = if crossed_boundary && !is_on_boundary {
+        if step > 0 {
+            ((start / grid) + 1) * grid
+        } else {
+            (start / grid) * grid
+        }
+    } else {
+        org_next
+    };
+
+    target.clamp(0, 100)
+}
+
+pub unsafe fn adjust_volume_for_pids(target_pids: &[u32], step: i8, snap: bool) -> windows::core::Result<bool> {
     if target_pids.is_empty() {
         return Ok(false);
     }
@@ -223,7 +253,7 @@ pub unsafe fn adjust_volume_for_pids(target_pids: &[u32], step: i8) -> windows::
                         if let Ok(simple_volume) = session.cast::<ISimpleAudioVolume>() {
                             let current_vol = simple_volume.GetMasterVolume()?;
                             let current_vol_pct = (current_vol * 100.0).round() as i16;
-                            let new_vol_pct = (current_vol_pct + step as i16).clamp(0, 100);
+                            let new_vol_pct = if snap { calculate_next_position(current_vol_pct as i32, step as i32) as i16 } else { (current_vol_pct + step as i16).clamp(0, 100) };
                             if new_vol_pct == 100 || new_vol_pct == 0 {
                                 boundary_hit = true;
                             }

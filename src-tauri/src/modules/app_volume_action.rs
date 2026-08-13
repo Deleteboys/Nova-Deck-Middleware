@@ -12,6 +12,7 @@ pub struct AppVolumeAction {
     pub step: i8,
     pub tx: mpsc::Sender<HostToPico>,
     pub switcher_runtime: Option<Arc<Mutex<AppSwitcherRuntime>>>,
+    pub snap: bool,
 }
 
 impl Action for AppVolumeAction {
@@ -28,6 +29,7 @@ impl Action for AppVolumeAction {
 
         let step = self.step;
         let tx = self.tx.clone();
+        let snap = self.snap;
 
         tauri::async_runtime::spawn(async move {
             let mut sys = System::new();
@@ -41,7 +43,7 @@ impl Action for AppVolumeAction {
                 .collect();
 
             unsafe {
-                match adjust_volume_for_pids(&target_pids, step) {
+                match adjust_volume_for_pids(&target_pids, step,snap) {
                     Ok(true) => {
                         let _ = tx.send(HostToPico::Vibrate {
                             pattern: VibrationPattern::Medium,
