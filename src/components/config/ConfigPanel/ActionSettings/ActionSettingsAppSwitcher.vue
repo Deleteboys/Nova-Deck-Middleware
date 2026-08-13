@@ -108,6 +108,7 @@ const iconOptions = [
   { title: 'Licht', value: 'Light' },
   { title: 'Aktives Fenster', value: 'Active_Window' },
   { title: 'Jellyfin', value: 'Jellyfin' },
+  { title: 'Home', value: 'Home' },
   { title: 'Keins', value: 'None' },
 ];
 
@@ -123,6 +124,7 @@ const sharedIconOptions = [
   { title: 'Licht', value: 'Light' },
   { title: 'Aktives Fenster', value: 'Active_Window' },
   { title: 'Jellyfin', value: 'Jellyfin' },
+  { title: 'Home', value: 'Home' },
   { title: 'Keins', value: 'None' },
 ];
 

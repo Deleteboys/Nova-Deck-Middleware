@@ -11,6 +11,7 @@ pub enum IconType {
     Light,
     ActiveWindow,
     Jellyfin,
+    Home,
     None,
 }
 

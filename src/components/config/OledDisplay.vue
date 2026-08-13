@@ -29,7 +29,7 @@ let unlistenIconUpdate: (() => void) | null = null;
 // Fallback-Daten
 const VOLUMES = [50, 65, 80, 35];
 let audioSaveTimeout: ReturnType<typeof setTimeout> | null = null;
-const defaultIcons = ['MASTER', 'SPOTIFY', 'DISCORD', 'BROWSER','MIC','CAMERA','PLAY_PAUSE', 'LIGHT', 'ACTIVE_WINDOW', 'JELLYFIN','NONE'];
+const defaultIcons = ['MASTER', 'SPOTIFY', 'DISCORD', 'BROWSER','MIC','CAMERA','PLAY_PAUSE', 'LIGHT', 'ACTIVE_WINDOW', 'JELLYFIN', 'HOME','NONE'];
 
 const ICONS: Record<string, string[]> = {
   MASTER: [
@@ -151,6 +151,22 @@ const ICONS: Record<string, string[]> = {
     "              ",
     "              ",
     "              "
+  ],
+  HOME: [
+    "              ",
+    "      11      ",
+    "     1111     ",
+    "    11  11    ",
+    "   11    11   ",
+    "  11      11  ",
+    " 11        11 ",
+    "11          11",
+    " 11        11 ",
+    " 11        11 ",
+    " 11        11 ",
+    " 111111111111 ",
+    "              ",
+    "              ",
   ],
   NONE: [""]
 };

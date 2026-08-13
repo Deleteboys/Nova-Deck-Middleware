@@ -280,6 +280,7 @@ fn parse_icon(icon_str: &str) -> IconType {
         "LIGHT" => IconType::Light,
         "ACTIVE_WINDOW" => IconType::ActiveWindow,
         "JELLYFIN" => IconType::Jellyfin,
+        "HOME" => IconType::Home,
         _ => IconType::None,
     }
 }

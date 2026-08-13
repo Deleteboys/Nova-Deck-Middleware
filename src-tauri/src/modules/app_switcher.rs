@@ -14,6 +14,7 @@ pub fn parse_icon_str(icon: &str) -> IconType {
         "LIGHT" => IconType::Light,
         "ACTIVE_WINDOW" => IconType::ActiveWindow,
         "JELLYFIN" => IconType::Jellyfin,
+        "HOME" => IconType::Home,
         _ => IconType::None,
     }
 }

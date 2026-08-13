@@ -30,6 +30,7 @@ fn icon_type_to_str(icon: IconType) -> &'static str {
         IconType::Light => "LIGHT",
         IconType::ActiveWindow => "ACTIVE_WINDOW",
         IconType::Jellyfin => "JELLYFIN",
+        IconType::Home => "HOME",
         IconType::None => "NONE",
     }
 }
