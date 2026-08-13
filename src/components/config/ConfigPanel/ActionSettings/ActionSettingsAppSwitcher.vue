@@ -67,6 +67,29 @@
         />
       </div>
     </template>
+
+    <v-divider class="my-3" />
+
+    <div class="d-flex align-center justify-space-between gap-2">
+      <div class="d-flex align-center">
+        <span class="text-caption text-grey">Geschlossene Apps überspringen</span>
+        <span class="d-inline-flex align-center ml-1 text-help">
+          <v-icon icon="mdi-information-outline" size="x-small" color="grey" />
+          <v-tooltip activator="parent" location="top" open-delay="250" max-width="260">
+            Beim Drehen werden nur Apps mit aktiver Audio-Session angesteuert
+          </v-tooltip>
+        </span>
+      </div>
+      <v-switch
+          :model-value="localHideClosedApps"
+          density="compact"
+          hide-details
+          color="primary"
+          class="flex-shrink-0"
+          style="margin-top: 0"
+          @update:model-value="(v) => updateHideClosedApps(!!v)"
+      />
+    </div>
   </div>
 </template>
 
@@ -77,16 +100,19 @@ import type { AppSwitcherEntry } from '@/services/streamdeckCommands';
 const props = defineProps<{
   apps: AppSwitcherEntry[];
   sharedIcon: string | null | undefined;
+  hideClosedApps: boolean | undefined;
   processes: string[];
   isEncoder: boolean;
 }>();
 
 const emit = defineEmits<{
   (e: 'update:apps', apps: AppSwitcherEntry[], sharedIcon: string | null): void;
+  (e: 'update:hideClosedApps', hideClosedApps: boolean): void;
 }>();
 
 const localApps = ref<AppSwitcherEntry[]>(props.apps.map(a => ({ ...a })));
 const localSharedIcon = ref<string | null>(props.sharedIcon ?? null);
+const localHideClosedApps = ref<boolean>(props.hideClosedApps ?? false);
 
 watch(() => props.apps, (val) => {
   localApps.value = val.map(a => ({ ...a }));
@@ -94,6 +120,10 @@ watch(() => props.apps, (val) => {
 
 watch(() => props.sharedIcon, (val) => {
   localSharedIcon.value = val ?? null;
+});
+
+watch(() => props.hideClosedApps, (val) => {
+  localHideClosedApps.value = val ?? false;
 });
 
 const iconOptions = [
@@ -141,10 +171,16 @@ const removeApp = (index: number) => {
 const emitUpdate = () => {
   emit('update:apps', localApps.value.map(a => ({ ...a })), localSharedIcon.value);
 };
+
+const updateHideClosedApps = (value: boolean) => {
+  localHideClosedApps.value = value;
+  emit('update:hideClosedApps', value);
+};
 </script>
 
 <style scoped>
 .gap-2 { gap: 8px; }
+.text-help { cursor: help; }
 .hover-error:hover {
   color: #ef4444 !important;
   background: rgba(239, 68, 68, 0.1);

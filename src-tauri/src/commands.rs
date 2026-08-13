@@ -49,6 +49,9 @@ pub enum ActionConfig {
         apps: Vec<AppSwitcherEntry>,
         shared_icon: Option<String>,
         direction: i8,
+        // Ältere Configs / Frontend-Payloads ohne dieses Feld bleiben ladbar
+        #[serde(default)]
+        hide_closed_apps: bool,
     },
 }
 
@@ -177,7 +180,7 @@ fn create_action(
         ActionConfig::SpotifyLikeAction => Box::new(modules::spotify_like::SpotifyLikeAction {
             spotify: spotify_client,
         }),
-        ActionConfig::AppSwitcherCycle { apps, shared_icon, direction } => {
+        ActionConfig::AppSwitcherCycle { apps, shared_icon, direction, hide_closed_apps } => {
             let id = encoder_id.unwrap_or(0) as usize;
             let runtime = Arc::clone(&switcher_states[id]);
             {
@@ -214,6 +217,7 @@ fn create_action(
                 runtime,
                 tx,
                 monitor_slots: encoder_id.map(|_| Arc::clone(&monitor_slots)),
+                hide_closed_apps,
             })
         }
     }

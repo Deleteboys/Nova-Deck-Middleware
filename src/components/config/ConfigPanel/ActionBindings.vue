@@ -170,9 +170,11 @@
               v-if="item.isAppSwitcherCycle"
               :apps="item.apps"
               :shared-icon="item.sharedIcon"
+              :hide-closed-apps="item.hideClosedApps"
               :processes="activeProcesses"
               :is-encoder="!!store.selectedElementId?.startsWith('enc-')"
               @update:apps="(apps, sharedIcon) => updateSwitcherApps(apps, sharedIcon)"
+              @update:hide-closed-apps="(hideClosedApps) => updateSwitcherHideClosedApps(hideClosedApps)"
           />
 
         </div>
@@ -250,7 +252,7 @@ const categorizedActions = [
     name: 'App-Wechsler',
     icon: 'mdi-swap-horizontal-circle',
     items: [
-      { title: 'App-Wechsler', icon: 'mdi-swap-horizontal-circle', config: { type: 'AppSwitcherCycle', apps: [], shared_icon: null, direction: 1 } },
+      { title: 'App-Wechsler', icon: 'mdi-swap-horizontal-circle', config: { type: 'AppSwitcherCycle', apps: [], shared_icon: null, direction: 1, hide_closed_apps: false } },
     ]
   },
   {
@@ -331,6 +333,7 @@ const boundActionsList = computed(() => {
       isAppSwitcherCycle,
       apps: isAppSwitcherCycle ? (config as any).apps as AppSwitcherEntry[] : [],
       sharedIcon: isAppSwitcherCycle ? (config as any).shared_icon as string | null : null,
+      hideClosedApps: isAppSwitcherCycle && !!(config as any).hide_closed_apps,
       isAppVolume,
       isToggleAppAudio,
       useSwitcher,
@@ -447,17 +450,26 @@ const updateUseSwitcher = async (trigger: TriggerType, useSwitcher: boolean) => 
   }
 };
 
-const updateSwitcherApps = async (apps: AppSwitcherEntry[], sharedIcon: string | null) => {
+// Wendet eine Änderung auf alle App-Wechsler-Aktionen des Elements an (TurnRight + TurnLeft)
+const patchSwitcherConfig = async (patch: Record<string, unknown>) => {
   if (!store.selectedElementId) return;
   const elementActions = store.activeProfile?.keys[store.selectedElementId]?.actions || {};
   for (const t of Object.keys(elementActions) as TriggerType[]) {
     const currentAction = elementActions[t];
     if (currentAction?.config?.type === 'AppSwitcherCycle') {
-      const updatedConfig = { ...currentAction.config, apps, shared_icon: sharedIcon };
+      const updatedConfig = { ...currentAction.config, ...patch };
       store.updateElementAction(store.selectedElementId, t, { ...currentAction, config: updatedConfig });
       try { await updateActionMapping(store.selectedElementId, t, updatedConfig); } catch (e) { console.error(e); }
     }
   }
+};
+
+const updateSwitcherApps = async (apps: AppSwitcherEntry[], sharedIcon: string | null) => {
+  await patchSwitcherConfig({ apps, shared_icon: sharedIcon });
+};
+
+const updateSwitcherHideClosedApps = async (hideClosedApps: boolean) => {
+  await patchSwitcherConfig({ hide_closed_apps: hideClosedApps });
 };
 
 const unbindSpecificAction = async (triggerToDelete: TriggerType) => {

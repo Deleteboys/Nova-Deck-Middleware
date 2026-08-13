@@ -35,7 +35,7 @@ export type ActionConfig =
     | { type: 'ToggleForegroundAudio' }
     | { type: 'SwitchAudioDevice'; device1: string; device2: string }
     | { type: 'SpotifyLikeAction' }
-    | { type: 'AppSwitcherCycle'; apps: AppSwitcherEntry[]; shared_icon?: string | null; direction: number };
+    | { type: 'AppSwitcherCycle'; apps: AppSwitcherEntry[]; shared_icon?: string | null; direction: number; hide_closed_apps?: boolean };
 
 export type FirmwareUpdateInfo = {
     version: string;

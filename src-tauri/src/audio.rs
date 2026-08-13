@@ -133,6 +133,61 @@ pub unsafe fn get_monitor_statuses(
     Ok(results)
 }
 
+/// Liefert die Session-Identifier (kleingeschrieben) aller Audio-Sessions, die
+/// aktuell offen sind und eine Lautstärke besitzen. Beendete (expired) Sessions
+/// und Sessions ohne Prozess werden übersprungen.
+pub unsafe fn list_open_session_identifiers() -> windows::core::Result<Vec<String>> {
+    use std::ffi::c_void;
+    use windows::Win32::System::Com::CoTaskMemFree;
+
+    let _com = crate::com::ComGuard::init_multithreaded()?;
+    let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
+    let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole)?;
+    let manager: IAudioSessionManager2 =
+        device.Activate::<IAudioSessionManager2>(CLSCTX_ALL, None)?;
+    let session_enumerator = manager.GetSessionEnumerator()?;
+    let session_count = session_enumerator.GetCount()?;
+
+    let mut identifiers = Vec::with_capacity(session_count as usize);
+
+    for index in 0..session_count {
+        let Ok(session) = session_enumerator.GetSession(index) else {
+            continue;
+        };
+        let Ok(session2) = session.cast::<IAudioSessionControl2>() else {
+            continue;
+        };
+
+        if session2.GetProcessId().unwrap_or(0) == 0 {
+            continue;
+        }
+
+        let expired = session
+            .GetState()
+            .map(|state| state == AudioSessionStateExpired)
+            .unwrap_or(true);
+        if expired {
+            continue;
+        }
+
+        // Ohne ISimpleAudioVolume gibt es keine Lautstärke zu steuern
+        if session.cast::<ISimpleAudioVolume>().is_err() {
+            continue;
+        }
+
+        if let Ok(pwstr) = session2.GetSessionIdentifier() {
+            let text = pwstr.to_string().unwrap_or_default().to_lowercase();
+            CoTaskMemFree(Some(pwstr.as_ptr() as *const c_void));
+
+            if !text.is_empty() {
+                identifiers.push(text);
+            }
+        }
+    }
+
+    Ok(identifiers)
+}
+
 unsafe fn foreground_process_id() -> u32 {
     let hwnd = GetForegroundWindow();
     if hwnd.is_invalid() {
@@ -157,7 +212,6 @@ pub unsafe fn adjust_volume_for_pids(target_pids: &[u32], step: i8) -> windows::
 
     let session_enumerator = manager.GetSessionEnumerator()?;
     let session_count = session_enumerator.GetCount()?;
-    let step_float = step as f32 / 100.0;
 
     let mut boundary_hit = false;
 
