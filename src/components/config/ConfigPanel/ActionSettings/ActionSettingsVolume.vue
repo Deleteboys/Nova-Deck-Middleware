@@ -38,6 +38,27 @@
         track-color="zinc-700"
         @update:model-value="onSliderUpdate"
     ></v-slider>
+
+    <div v-if="showSnap" class="d-flex align-center justify-space-between px-1 pt-1">
+      <div class="d-flex align-center">
+        <span class="text-caption text-grey">Am Raster einrasten</span>
+        <span class="d-inline-flex align-center ml-1 text-help">
+          <v-icon icon="mdi-information-outline" size="x-small" color="grey" />
+          <v-tooltip activator="parent" location="top" open-delay="250" max-width="260">
+            Springt auf runde Werte, statt exakt um das Intervall zu ändern
+          </v-tooltip>
+        </span>
+      </div>
+      <v-switch
+          :model-value="snap"
+          density="compact"
+          hide-details
+          color="primary"
+          class="flex-shrink-0"
+          style="margin-top: 0"
+          @update:model-value="onSnapUpdate"
+      />
+    </div>
   </div>
 </template>
 
@@ -45,13 +66,19 @@
 import { ref } from 'vue';
 
 // --- PROPS ---
-defineProps<{
+withDefaults(defineProps<{
   step: number;
-}>();
+  showSnap?: boolean;
+  snap?: boolean;
+}>(), {
+  showSnap: false,
+  snap: false,
+});
 
 // --- EMITS ---
 const emit = defineEmits<{
   (e: 'update:step', value: number): void;
+  (e: 'update:snap', value: boolean): void;
 }>();
 
 // --- STATE ---
@@ -75,6 +102,10 @@ const onInputUpdate = (val: string | number) => {
 
 const onSliderUpdate = (val: number) => {
   emit('update:step', val);
+};
+
+const onSnapUpdate = (val: boolean | null) => {
+  emit('update:snap', !!val);
 };
 </script>
 

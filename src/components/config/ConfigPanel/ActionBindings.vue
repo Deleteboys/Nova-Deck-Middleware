@@ -119,29 +119,11 @@
           <ActionSettingsVolume
               v-if="item.hasStep"
               :step="item.step || 0"
+              :show-snap="item.supportsSnap"
+              :snap="item.snap"
               @update:step="(val) => updateActionStep(item.triggerValue, val)"
+              @update:snap="(val) => updateSnap(item.triggerValue, val)"
           />
-
-          <div v-if="item.supportsSnap" class="d-flex align-center justify-space-between px-1 pt-1">
-            <div class="d-flex align-center">
-              <span class="text-caption text-grey">Am Raster einrasten</span>
-              <span class="d-inline-flex align-center ml-1 text-help">
-                <v-icon icon="mdi-information-outline" size="x-small" color="grey" />
-                <v-tooltip activator="parent" location="top" open-delay="250" max-width="260">
-                  Springt auf runde Werte, statt exakt um das Intervall zu ändern
-                </v-tooltip>
-              </span>
-            </div>
-            <v-switch
-                :model-value="item.snap"
-                density="compact"
-                hide-details
-                color="primary"
-                class="flex-shrink-0"
-                style="margin-top: 0"
-                @update:model-value="(val) => updateSnap(item.triggerValue, !!val)"
-            />
-          </div>
 
           <div v-if="item.isAppVolume || item.isToggleAppAudio" class="d-flex align-center justify-space-between px-1 pt-1">
             <span class="text-caption text-grey">App-Wechsler koppeln</span>
@@ -245,7 +227,7 @@ const categorizedActions = [
     name: 'System & Audio',
     icon: 'mdi-monitor-speaker',
     items: [
-      { title: 'Master Volume', icon: 'mdi-volume-high', config: { type: 'MasterVolume', step: 5 } },
+      { title: 'Master Volume', icon: 'mdi-volume-high', config: { type: 'MasterVolume', step: 5, snap: false } },
       { title: 'Global Mute (Toggle)', icon: 'mdi-volume-mute', config: { type: 'ToggleMasterMute' } },
       { title: 'Switch Audio Device', icon: 'mdi-swap-horizontal', config: { type: 'SwitchAudioDevice', device1: '', device2: '' } },
       { title: 'Taste drücken', icon: 'mdi-keyboard', config: { type: 'PressKey', key: 'F13' } },
@@ -326,7 +308,7 @@ const boundActionsList = computed(() => {
     const isAppVolume = type === 'AppVolume';
     const isToggleAppAudio = type === 'ToggleAppAudio';
     const useSwitcher = (isAppVolume || isToggleAppAudio) && !!(config as any)?.use_switcher;
-    const supportsSnap = isAppVolume || type === 'ForegroundVolume';
+    const supportsSnap = isAppVolume || type === 'ForegroundVolume' || type === 'MasterVolume';
     const snap = supportsSnap && !!(config as any)?.snap;
     const hasStep = config && 'step' in config && type !== 'AppSwitcherCycle';
     const hasKey = config && 'key' in config && type === 'PressKey';

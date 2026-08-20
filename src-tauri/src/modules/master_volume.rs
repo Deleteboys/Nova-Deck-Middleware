@@ -1,4 +1,5 @@
 use crate::action::actions::Action;
+use crate::audio::calculate_next_position;
 use crate::protocol::{HostToPico, VibrationPattern};
 use log::{debug, error};
 use std::fmt::Debug;
@@ -11,6 +12,7 @@ use windows::Win32::System::Com::*;
 pub struct MasterVolumeAction {
     pub step: i8,
     pub tx: mpsc::Sender<HostToPico>,
+    pub snap: bool,
 }
 
 unsafe fn get_master_volume_interface() -> windows::core::Result<IAudioEndpointVolume> {
@@ -35,14 +37,22 @@ pub unsafe fn get_master_volume() -> windows::core::Result<f32> {
 
 impl Action for MasterVolumeAction {
     fn execute(&self) {
-        let step_float = self.step as f32 / 100.0;
+        let step = self.step as i32;
         let tx = self.tx.clone();
+        let snap = self.snap;
 
         tauri::async_runtime::spawn(async move {
             unsafe {
                 if let Ok(current_vol) = get_master_volume() {
-                    let new_vol = (current_vol + step_float).clamp(0.0, 1.0);
-                    if new_vol == 1.0 || new_vol == 0.0 {
+                    let current_vol_pct = (current_vol * 100.0).round() as i32;
+                    let new_vol_pct = if snap {
+                        calculate_next_position(current_vol_pct, step)
+                    } else {
+                        (current_vol_pct + step).clamp(0, 100)
+                    };
+                    let new_vol = new_vol_pct as f32 / 100.0;
+
+                    if new_vol_pct == 100 || new_vol_pct == 0 {
                         let _ = tx.send(HostToPico::Vibrate {
                             pattern: VibrationPattern::Medium,
                         });

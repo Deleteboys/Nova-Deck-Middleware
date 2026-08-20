@@ -27,7 +27,7 @@ export type ActionConfig =
     | { type: 'CustomMacro'; key: string }
     | { type: 'MediaControl'; key: string }
     | { type: 'SpotifyVolume'; step: number }
-    | { type: 'MasterVolume'; step: number }
+    | { type: 'MasterVolume'; step: number; snap?: boolean }
     | { type: 'ToggleAppAudio'; process_name: string; use_switcher?: boolean }
     | { type: 'ToggleMasterMute' }
     | { type: 'AppVolume'; process_name: string; step: number; use_switcher?: boolean; snap?: boolean }

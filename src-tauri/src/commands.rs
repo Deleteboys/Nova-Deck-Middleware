@@ -50,6 +50,8 @@ pub enum ActionConfig {
     },
     MasterVolume {
         step: i8,
+        #[serde(default)]
+        snap: bool,
     },
     ToggleAppAudio {
         process_name: String,
@@ -159,8 +161,8 @@ fn create_action(
                 spotify: spotify_client,
             })
         }
-        ActionConfig::MasterVolume { step } => {
-            Box::new(modules::master_volume::MasterVolumeAction { step, tx })
+        ActionConfig::MasterVolume { step, snap } => {
+            Box::new(modules::master_volume::MasterVolumeAction { step, tx, snap })
         }
         ActionConfig::ToggleAppAudio {
             process_name,

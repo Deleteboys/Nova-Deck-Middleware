@@ -199,7 +199,7 @@ unsafe fn foreground_process_id() -> u32 {
     pid
 }
 
-fn calculate_next_position(start: i32, step: i32) -> i32 {
+pub fn calculate_next_position(start: i32, step: i32) -> i32 {
     if step == 0 {
         return start.clamp(0, 100);
     }
