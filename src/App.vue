@@ -55,14 +55,13 @@ const extractConfig = (payload: unknown): DeviceConfig | null => {
 onMounted(async () => {
 
   detachLogs = await attachConsole();
-  await store.initLogger();
   // 2. Browser-Konsole abfangen und in den Store leiten
   const consoleMethods = [
-    { method: 'error', level: 1 },
-    { method: 'warn', level: 2 },
+    { method: 'error', level: 5 },
+    { method: 'warn', level: 4 },
     { method: 'info', level: 3 },
-    { method: 'debug', level: 4 },
-    { method: 'trace', level: 5 },
+    { method: 'debug', level: 2 },
+    { method: 'trace', level: 1 },
     { method: 'log', level: 3 }
   ] as const;
 

@@ -49,6 +49,7 @@ pub fn start_serial_thread(
     let mut serial_buf = [0u8; 1024];
     let mut last_buffer_drop_log = Instant::now() - Duration::from_secs(10);
     let mut last_ping = Instant::now();
+    let mut ping_seq: u32 = 0;
 
     let mut tracker = InputTracker::new();
 
@@ -164,15 +165,23 @@ pub fn start_serial_thread(
                                 let _ = app.emit("pico-event", msg.clone());
                                 crate::diagnostics::record_serial_pico_event_emit();
 
-                                if let PicoToHost::Version { version } = &msg {
-                                    let _ = app.emit("pico-version", version.as_str());
-                                }
-
-                                if let PicoToHost::ButtonChanged { id, .. } = &msg {
-                                    if let Ok(manager) = action_manager.lock() {
-                                        let expects_double_click = manager.has_double_press(*id);
-                                        tracker.set_double_click_enabled(*id, expects_double_click);
+                                match &msg {
+                                    PicoToHost::Pong { seq } => {
+                                        log::debug!(target: "pico", "Pong empfangen (seq: {})", seq);
                                     }
+                                    PicoToHost::Log(log_msg) => {
+                                        info!("[Pico] {}", log_msg);
+                                    }
+                                    PicoToHost::Version { version } => {
+                                        let _ = app.emit("pico-version", version.as_str());
+                                    }
+                                    PicoToHost::ButtonChanged { id, .. } => {
+                                        if let Ok(manager) = action_manager.lock() {
+                                            let expects_double_click = manager.has_double_press(*id);
+                                            tracker.set_double_click_enabled(*id, expects_double_click);
+                                        }
+                                    }
+                                    _ => {}
                                 }
 
                                 if let Some(logical_trigger) = tracker.process_event(msg) {
@@ -224,7 +233,9 @@ pub fn start_serial_thread(
             }
             if last_ping.elapsed() >= Duration::from_secs(5) {
                 last_ping = Instant::now();
-                if let Err(e) = write_to_pico(port, &HostToPico::Ping) {
+                ping_seq = ping_seq.wrapping_add(1);
+
+                if let Err(e) = write_to_pico(port, &HostToPico::Ping { seq: ping_seq }) {
                     let port_label = current_port_name.as_deref().unwrap_or("unknown");
                     info!("Keepalive ping to {} failed, reconnecting: {}", port_label, e);
                     is_device_connected.store(false, Ordering::Relaxed);

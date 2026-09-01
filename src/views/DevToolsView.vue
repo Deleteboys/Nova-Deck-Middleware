@@ -190,14 +190,14 @@ let diagnosticsInterval: number | null = null;
 
 // Definition der verfügbaren Log-Level mit ihren UI-Eigenschaften
 const logLevels = [
-  {value: 1, name: 'ERROR', color: 'error'},
-  {value: 2, name: 'WARN', color: 'warning'},
-  {value: 3, name: 'INFO', color: 'primary'},
-  {value: 4, name: 'DEBUG', color: 'grey'},
-  {value: 5, name: 'TRACE', color: 'grey-darken-2'},
+  { value: 5, name: 'ERROR', color: 'error' },
+  { value: 4, name: 'WARN',  color: 'warning' },
+  { value: 3, name: 'INFO',  color: 'primary' },
+  { value: 2, name: 'DEBUG', color: 'grey' },
+  { value: 1, name: 'TRACE', color: 'grey-darken-2' },
 ];
 
-const activeLogLevels = ref<number[]>([1, 2, 3]);
+const activeLogLevels = ref<number[]>([3, 4, 5]);
 
 const filteredLogs = computed(() => {
   return store.debugLogs.filter(log => activeLogLevels.value.includes(log.level));
@@ -336,35 +336,23 @@ onUnmounted(() => {
 // --- Log Formatierung ---
 const getLogLevelName = (level: number) => {
   switch (level) {
-    case 1:
-      return 'ERROR';
-    case 2:
-      return 'WARN';
-    case 3:
-      return 'INFO';
-    case 4:
-      return 'DEBUG';
-    case 5:
-      return 'TRACE';
-    default:
-      return 'LOG';
+    case 5: return 'ERROR';
+    case 4: return 'WARN';
+    case 3: return 'INFO';
+    case 2: return 'DEBUG';
+    case 1: return 'TRACE';
+    default: return 'LOG';
   }
 };
 
 const getLogLevelClass = (level: number) => {
   switch (level) {
-    case 1:
-      return 'text-error';
-    case 2:
-      return 'text-warning';
-    case 3:
-      return 'text-primary';
-    case 4:
-      return 'text-grey';
-    case 5:
-      return 'text-grey-darken-2';
-    default:
-      return 'text-white';
+    case 5: return 'text-error';
+    case 4: return 'text-warning';
+    case 3: return 'text-primary';
+    case 2: return 'text-grey';
+    case 1: return 'text-grey-darken-2';
+    default: return 'text-white';
   }
 };
 </script>

@@ -131,7 +131,7 @@ impl Default for DeviceConfig {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub enum HostToPico {
-    Ping,
+    Ping { seq: u32 },
     StartBootloader,
     GetConfig,
     GetVersion,
@@ -173,7 +173,7 @@ pub enum HostToPico {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum PicoToHost {
-    Hello,
+    Pong { seq: u32 },
     EncoderTurned { id: u8, delta: i8 },
     EncoderChanged { id: u8, pressed: bool },
     ButtonChanged { id: u8, pressed: bool },

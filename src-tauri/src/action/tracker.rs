@@ -42,10 +42,6 @@ impl InputTracker {
 
     pub fn process_event(&mut self, event: PicoToHost) -> Option<HardwareTrigger> {
         match event {
-            PicoToHost::Log(log_msg) => {
-                info!("[Pico] {}", log_msg);
-                None
-            }
             PicoToHost::ButtonChanged { id, pressed } => {
                 let id_usize = id as usize;
                 if pressed {
