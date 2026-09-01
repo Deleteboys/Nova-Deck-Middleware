@@ -1,6 +1,7 @@
 use crate::action::actions::{ButtonEvent, EncoderEvent, HardwareTrigger};
 use crate::protocol::PicoToHost;
 use std::time::Instant;
+use log::info;
 
 const LONG_PRESS_MS: u128 = 500;
 const DOUBLE_PRESS_TIMEOUT_MS: u128 = 250;
@@ -41,6 +42,10 @@ impl InputTracker {
 
     pub fn process_event(&mut self, event: PicoToHost) -> Option<HardwareTrigger> {
         match event {
+            PicoToHost::Log(log_msg) => {
+                info!("[Pico] {}", log_msg);
+                None
+            }
             PicoToHost::ButtonChanged { id, pressed } => {
                 let id_usize = id as usize;
                 if pressed {

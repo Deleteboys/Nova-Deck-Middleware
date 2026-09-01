@@ -9,6 +9,7 @@ import {
 } from '@/services/streamdeckCommands'
 import type {DeviceConfig} from '@/services/streamdeckCommands'
 import {invoke} from "@tauri-apps/api/core";
+import {attachLogger} from "@tauri-apps/plugin-log";
 
 const hexToRgb = (hex: string) => {
     const r = parseInt(hex.slice(1, 3), 16)
@@ -109,6 +110,13 @@ const isActionConfig = (value: unknown): value is ActionConfig => {
 
 const persistedState = loadPersistedState()
 
+export interface DebugLogEntry {
+    message: string;
+    level: number;
+    timestamp: string;
+    category: 'pico' | 'host';
+}
+
 export const useStreamDeckStore = defineStore('streamdeck', {
     state: () => ({
         currentProfileId: persistedState?.currentProfileId ?? 0,
@@ -132,7 +140,7 @@ export const useStreamDeckStore = defineStore('streamdeck', {
             spread: 120,
             reverse: false
         } as any,
-        debugLogs: [] as { message: string; level: number; timestamp: string }[],
+        debugLogs: [] as DebugLogEntry[],
     }),
 
     getters: {
@@ -155,15 +163,32 @@ export const useStreamDeckStore = defineStore('streamdeck', {
                 console.warn('Persisted StreamDeck config could not be saved:', error)
             }
         },
-        addLog(message: string, level: number) {
+        addLog(message: string, level: number, category: 'pico' | 'host' = 'host') {
             const timestamp = new Date().toLocaleTimeString();
-            this.debugLogs.unshift({ message, level, timestamp });
-
+            this.debugLogs.unshift({ message, level, timestamp, category });
             // Optional: Limitiere die Anzahl der Logs auf 100
             if (this.debugLogs.length > 100) this.debugLogs.pop();
         },
         clearLogs() {
             this.debugLogs = [];
+        },
+        async initLogger() {
+            try {
+                await attachLogger((entry) => {
+                    const isPico = entry.message.startsWith('[Pico]');
+                    const cleanMessage = isPico
+                        ? entry.message.replace(/^\[Pico\]\s*/, '')
+                        : entry.message;
+
+                    this.addLog(
+                        cleanMessage,
+                        entry.level,
+                        isPico ? 'pico' : 'host'
+                    );
+                });
+            } catch (error) {
+                console.error('Fehler beim Initialisieren des Tauri Loggers:', error);
+            }
         },
         async syncOledIconsToBackend() {
             const slots = this.activeProfile?.keys['oled-display']?.slots;
