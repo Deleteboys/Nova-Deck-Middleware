@@ -1,12 +1,16 @@
 use crate::action::actions::Action;
-use crate::audio::list_audio_devices;
 use log::{debug, error};
+
+#[cfg(target_os = "windows")]
 use windows::core::{IUnknown, Interface, GUID, HRESULT, PCWSTR};
+#[cfg(target_os = "windows")]
 use windows::Win32::Media::Audio::{
     eCommunications, eConsole, eMultimedia, eRender, ERole, IMMDeviceEnumerator, MMDeviceEnumerator,
 };
+#[cfg(target_os = "windows")]
 use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_ALL};
 
+#[cfg(target_os = "windows")]
 #[repr(C)]
 pub struct IPolicyConfigVtbl {
     pub query_interface: usize,
@@ -29,10 +33,12 @@ pub struct IPolicyConfigVtbl {
     pub set_endpoint_visibility: usize,
 }
 
+#[cfg(target_os = "windows")]
 #[repr(transparent)]
 #[derive(Clone, PartialEq, Eq)]
 pub struct PolicyConfig(pub IUnknown);
 
+#[cfg(target_os = "windows")]
 unsafe impl Interface for PolicyConfig {
     type Vtable = IPolicyConfigVtbl;
     const IID: GUID = GUID::from_u128(0x568b9108_44bf_40b4_9006_86afe5b5a620);
@@ -46,20 +52,18 @@ pub struct SwitchAudioAction {
 
 impl Action for SwitchAudioAction {
     fn execute(&self) {
+        #[cfg(target_os = "windows")]
         unsafe {
-            // COM Initialisierung für diesen Thread[cite: 2]
             let Ok(_com) = crate::com::ComGuard::init_multithreaded() else {
                 error!("Fehler beim Initialisieren von Windows COM.");
                 return;
             };
 
-            // 1. Alle verfügbaren Geräte über das Audio-Modul abrufen[cite: 2]
-            let Ok(devices) = list_audio_devices() else {
+            let Ok(devices) = crate::audio::list_audio_devices() else {
                 error!("❌ Fehler beim Auslesen der Audiogeräte.");
                 return;
             };
 
-            // 2. IDs für die konfigurierten Namen finden
             let id_a = devices
                 .iter()
                 .find(|d| d.name == self.device_a)
@@ -77,7 +81,6 @@ impl Action for SwitchAudioAction {
                 return;
             };
 
-            // 3. Aktuelles Standard-Gerät ermitteln[cite: 2]
             let Ok(enumerator) =
                 CoCreateInstance::<_, IMMDeviceEnumerator>(&MMDeviceEnumerator, None, CLSCTX_ALL)
             else {
@@ -106,8 +109,8 @@ impl Action for SwitchAudioAction {
             let pcwstr_id = PCWSTR(id_wide.as_ptr());
 
             let clsids = [
-                GUID::from_u128(0x294935ce_f637_4e7c_a41b_ab255460b862), // Modern (Win 10/11)
-                GUID::from_u128(0x870af99c_171d_4f9e_af0d_e63df40c2bc9), // Standard (Win 7/10)
+                GUID::from_u128(0x294935ce_f637_4e7c_a41b_ab255460b862),
+                GUID::from_u128(0x870af99c_171d_4f9e_af0d_e63df40c2bc9),
             ];
 
             let mut success = false;
@@ -127,6 +130,11 @@ impl Action for SwitchAudioAction {
             } else {
                 error!("❌ Fehler: PolicyConfig konnte nicht instanziiert werden.");
             }
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            debug!("Audio-Umschaltung unter Linux noch nicht angebunden.");
         }
     }
 }

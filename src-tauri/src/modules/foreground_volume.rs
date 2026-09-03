@@ -3,7 +3,6 @@ use crate::audio::adjust_volume_for_pids;
 use crate::protocol::{HostToPico, VibrationPattern};
 use std::sync::mpsc;
 use log::error;
-use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId};
 
 #[derive(Debug, Clone)]
 pub struct ForegroundVolumeAction {
@@ -20,13 +19,7 @@ impl Action for ForegroundVolumeAction {
 
         tauri::async_runtime::spawn(async move {
             unsafe {
-                let hwnd = GetForegroundWindow();
-                if hwnd.is_invalid() {
-                    return;
-                }
-
-                let mut pid: u32 = 0;
-                GetWindowThreadProcessId(hwnd, Some(&mut pid));
+                let pid = crate::platform::get_active_window_pid();
 
                 if pid != 0 {
                     match adjust_volume_for_pids(&[pid], step, snap) {

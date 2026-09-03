@@ -2,15 +2,10 @@
 name = "NovaDeckApp"
 version = "0.1.0"
 description = "A Tauri App"
-authors = ["you"]
+authors = ["Deleteboys"]
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [lib]
-# The `_lib` suffix may seem redundant but it is necessary
-# to make the lib name unique and wouldn't conflict with the bin name.
-# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
 name = "novadeckmiddleware_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
@@ -29,7 +24,6 @@ heapless = { version = "0.9.2", features = ["serde"] }
 enigo = "0.6.1"
 dotenvy = "0.15.7"
 rspotify = { version = "0.16", features = ["cli"] }
-windows = { version = "0.62.2", features = ["Win32_Media_Audio", "Win32_Media_Audio_Endpoints", "Win32_System_Com", "Win32_System_ProcessStatus", "Win32_System_Threading", "Win32_Foundation", "Win32_System_Variant", "Win32_System_Com_StructuredStorage", "Win32_Devices", "Win32_Devices_FunctionDiscovery", "Win32_UI_Shell_PropertiesSystem", "Win32_UI_WindowsAndMessaging", "Foundation", "Foundation_Collections", "Media_Control", ] }
 sysinfo = "0.38.4"
 reqwest = { version = "0.13.3", features = ["json", "stream"] }
 tauri-plugin-autostart = "2.5.1"
@@ -39,10 +33,29 @@ tauri-plugin-log = "2.8.0"
 log = "0.4.29"
 tokio = "1.52.0"
 open = "5.3.4"
+tauri-plugin-wayland-nvidia-quirk = "0.1.0"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62.2", features = [
+    "Win32_Media_Audio",
+    "Win32_Media_Audio_Endpoints",
+    "Win32_System_Com",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Threading",
+    "Win32_Foundation",
+    "Win32_System_Variant",
+    "Win32_System_Com_StructuredStorage",
+    "Win32_Devices",
+    "Win32_Devices_FunctionDiscovery",
+    "Win32_UI_Shell_PropertiesSystem",
+    "Win32_UI_WindowsAndMessaging",
+    "Foundation",
+    "Foundation_Collections",
+    "Media_Control"
+] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
-
 
 [profile.release.package.wry]
 debug = true

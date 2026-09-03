@@ -4,7 +4,7 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 use log::info;
-use tauri::Emitter; // WICHTIG: Erlaubt das Senden von Events ans Frontend
+use tauri::Emitter;
 
 #[derive(serde::Serialize, Clone)]
 pub struct AudioUpdatePayload {
@@ -20,7 +20,10 @@ pub fn start_monitoring(
 ) {
     thread::spawn(move || {
         info!("Audio thread is running in the background.");
+
+        #[cfg(target_os = "windows")]
         let _com = unsafe { crate::com::ComGuard::init_multithreaded().ok() };
+
         let mut last_volumes = [255u8; 4];
         let mut last_mutes = [false; 4];
 
@@ -69,7 +72,6 @@ pub fn start_monitoring(
                         changed = true;
                     }
 
-                    // HIER NEU: Sende die Änderung auch an das Frontend
                     if changed {
                         let _ = app_handle.emit(
                             "audio-update",

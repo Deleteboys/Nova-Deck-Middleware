@@ -18,17 +18,34 @@ impl Action for CustomMacroAction {
                     .args(["user32.dll,LockWorkStation"])
                     .spawn();
                 debug!("PC nativ gesperrt: {}", self.keys_string);
-                return; // Beendet die Funktion, Enigo wird nicht ausgeführt
+                return;
             }
             "Ctrl + Shift + Esc" => {
                 let _ = Command::new("taskmgr.exe").spawn();
                 debug!("Task-Manager nativ geöffnet: {}", self.keys_string);
-                return; // Beendet die Funktion
+                return;
             }
-            _ => {} // Bei allen anderen Strings geht es ganz normal unten weiter
+            _ => {}
         }
 
-        let mut enigo = Enigo::new(&Settings::default()).unwrap();
+        #[cfg(target_os = "linux")]
+        match self.keys_string.as_str() {
+            "Win + L" => {
+                // Standard-Befehl unter Linux / Hyprland zum Sperren der Session
+                let _ = Command::new("loginctl").arg("lock-session").spawn();
+                debug!("Session nativ gesperrt: {}", self.keys_string);
+                return;
+            }
+            _ => {}
+        }
+
+        let mut enigo = match Enigo::new(&Settings::default()) {
+            Ok(e) => e,
+            Err(err) => {
+                warn!("Konnte Enigo nicht initialisieren: {:?}", err);
+                return;
+            }
+        };
 
         let parts: Vec<&str> = self.keys_string.split(" + ").collect();
 
@@ -80,10 +97,10 @@ fn parse_key_string(s: &str) -> Option<Key> {
         "ARROWLEFT" => Some(Key::LeftArrow),
         "ARROWRIGHT" => Some(Key::RightArrow),
         "PrintScreen" => Some(Key::PrintScr),
-        "ScrollLock" => Some(Key::Scroll),
         "Pause" => Some(Key::Pause),
         "Insert" => Some(Key::Insert),
-        "ContextMenu" => Some(Key::Apps),
+        // Enigo 0.6 bietet keine plattformübergreifenden Varianten für ScrollLock und ContextMenu:
+        "ScrollLock" | "ContextMenu" => None,
         _ => {
             if s.len() == 1 {
                 let c = s.chars().next().unwrap().to_ascii_lowercase();
