@@ -83,6 +83,9 @@ export type RuntimeDiagnostics = {
         empty_results: number;
         updates_emitted: number;
         pico_commands_sent: number;
+        /** Nur Linux: Verbindungen zum PulseAudio/PipeWire-Server. */
+        backend_connects: number;
+        backend_errors: number;
     };
     com: {
         init_calls: number;
@@ -398,4 +401,10 @@ export async function startSpotifyLogin(clientId: string): Promise<void> {
 
 export async function getRuntimeDiagnostics(): Promise<RuntimeDiagnostics> {
     return await invoke<RuntimeDiagnostics>("get_runtime_diagnostics");
+}
+
+export type HostPlatform = 'windows' | 'linux' | 'unknown';
+
+export async function getPlatform(): Promise<HostPlatform> {
+    return await invoke<HostPlatform>("get_platform");
 }

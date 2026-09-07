@@ -1,8 +1,8 @@
 use crate::action::actions::Action;
+use crate::platform::shell::run_special_shortcut;
 use enigo::Direction::{Click, Press, Release};
 use enigo::{Enigo, Key, Keyboard, Settings};
-use log::{debug, warn};
-use std::process::Command;
+use log::{debug, error, warn};
 
 #[derive(Debug)]
 pub struct CustomMacroAction {
@@ -11,24 +11,19 @@ pub struct CustomMacroAction {
 
 impl Action for CustomMacroAction {
     fn execute(&self) {
-        #[cfg(target_os = "windows")]
-        match self.keys_string.as_str() {
-            "Win + L" => {
-                let _ = Command::new("rundll32.exe")
-                    .args(["user32.dll,LockWorkStation"])
-                    .spawn();
-                debug!("PC nativ gesperrt: {}", self.keys_string);
-                return; // Beendet die Funktion, Enigo wird nicht ausgeführt
-            }
-            "Ctrl + Shift + Esc" => {
-                let _ = Command::new("taskmgr.exe").spawn();
-                debug!("Task-Manager nativ geöffnet: {}", self.keys_string);
-                return; // Beendet die Funktion
-            }
-            _ => {} // Bei allen anderen Strings geht es ganz normal unten weiter
+        // Manche Makros lassen sich nicht sinnvoll tippen (Sperrbildschirm,
+        // Systemmonitor) – die übernimmt das Plattform-Backend direkt.
+        if run_special_shortcut(&self.keys_string) {
+            return;
         }
 
-        let mut enigo = Enigo::new(&Settings::default()).unwrap();
+        let mut enigo = match Enigo::new(&Settings::default()) {
+            Ok(enigo) => enigo,
+            Err(e) => {
+                error!("Tastatursimulation nicht verfügbar: {}", e);
+                return;
+            }
+        };
 
         let parts: Vec<&str> = self.keys_string.split(" + ").collect();
 
@@ -64,6 +59,19 @@ impl Action for CustomMacroAction {
     }
 }
 
+/// Rollen-/Scroll-Lock heißt in enigo je Plattform anders.
+#[cfg(windows)]
+const SCROLL_LOCK: Key = Key::Scroll;
+#[cfg(target_os = "linux")]
+const SCROLL_LOCK: Key = Key::ScrollLock;
+
+/// Kontextmenü-Taste. Unter Linux hat enigo dafür keine benannte Variante,
+/// deshalb direkt das X11-Keysym `XK_Menu`.
+#[cfg(windows)]
+const CONTEXT_MENU: Key = Key::Apps;
+#[cfg(target_os = "linux")]
+const CONTEXT_MENU: Key = Key::Other(0xff67);
+
 fn parse_key_string(s: &str) -> Option<Key> {
     match s {
         "Ctrl" => Some(Key::Control),
@@ -80,10 +88,10 @@ fn parse_key_string(s: &str) -> Option<Key> {
         "ARROWLEFT" => Some(Key::LeftArrow),
         "ARROWRIGHT" => Some(Key::RightArrow),
         "PrintScreen" => Some(Key::PrintScr),
-        "ScrollLock" => Some(Key::Scroll),
+        "ScrollLock" => Some(SCROLL_LOCK),
         "Pause" => Some(Key::Pause),
         "Insert" => Some(Key::Insert),
-        "ContextMenu" => Some(Key::Apps),
+        "ContextMenu" => Some(CONTEXT_MENU),
         _ => {
             if s.len() == 1 {
                 let c = s.chars().next().unwrap().to_ascii_lowercase();

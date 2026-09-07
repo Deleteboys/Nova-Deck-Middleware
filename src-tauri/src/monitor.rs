@@ -20,7 +20,9 @@ pub fn start_monitoring(
 ) {
     thread::spawn(move || {
         info!("Audio thread is running in the background.");
-        let _com = unsafe { crate::com::ComGuard::init_multithreaded().ok() };
+        // Hält die Verbindung zum Audio-Backend für die Lebensdauer des Threads
+        // offen (Windows: COM, Linux: PulseAudio-Worker).
+        let _audio = audio::ThreadGuard::acquire();
         let mut last_volumes = [255u8; 4];
         let mut last_mutes = [false; 4];
 
@@ -32,7 +34,7 @@ pub fn start_monitoring(
                 guard.clone()
             };
 
-            let statuses = unsafe { audio::get_monitor_statuses(&current_slots) };
+            let statuses = audio::get_monitor_statuses(&current_slots);
             if statuses.is_err() {
                 crate::diagnostics::record_audio_status_error();
             }

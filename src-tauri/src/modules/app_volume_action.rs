@@ -1,10 +1,9 @@
 use crate::action::actions::Action;
-use crate::audio::adjust_volume_for_pids;
+use crate::audio::{adjust_volume, target_for_process_name};
 use crate::modules::app_switcher::AppSwitcherRuntime;
 use crate::protocol::{HostToPico, VibrationPattern};
 use log::error;
 use std::sync::{mpsc, Arc, Mutex};
-use sysinfo::{ProcessesToUpdate, System};
 
 #[derive(Debug)]
 pub struct AppVolumeAction {
@@ -32,26 +31,16 @@ impl Action for AppVolumeAction {
         let snap = self.snap;
 
         tauri::async_runtime::spawn(async move {
-            let mut sys = System::new();
-            sys.refresh_processes(ProcessesToUpdate::All, true);
+            let target = target_for_process_name(&name);
 
-            let target_pids: Vec<u32> = sys
-                .processes()
-                .iter()
-                .filter(|(_, p)| p.name().to_string_lossy() == name)
-                .map(|(pid, _)| pid.as_u32())
-                .collect();
-
-            unsafe {
-                match adjust_volume_for_pids(&target_pids, step,snap) {
-                    Ok(true) => {
-                        let _ = tx.send(HostToPico::Vibrate {
-                            pattern: VibrationPattern::Medium,
-                        });
-                    }
-                    Err(e) => error!("Fehler bei {}: {}", name, e),
-                    _ => {}
+            match adjust_volume(&target, step, snap) {
+                Ok(true) => {
+                    let _ = tx.send(HostToPico::Vibrate {
+                        pattern: VibrationPattern::Medium,
+                    });
                 }
+                Err(e) => error!("Fehler bei {}: {}", name, e),
+                _ => {}
             }
         });
     }

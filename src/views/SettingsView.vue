@@ -129,7 +129,7 @@
 
       <v-card color="#18181b" variant="flat" class="border border-zinc-800 rounded-lg overflow-hidden mb-8">
         <div class="d-flex justify-space-between align-center px-4 py-3 border-b border-zinc-700">
-          <div class="text-body-2 text-grey">Auto-Start mit Windows</div>
+          <div class="text-body-2 text-grey">Auto-Start beim Anmelden</div>
           <v-switch :model-value="autostartEnabled" @update:model-value="toggleAutostart" color="primary" base-color="#3f3f46" hide-details density="compact"></v-switch>
         </div>
         <div class="d-flex justify-space-between align-center px-4 py-3 border-b border-zinc-700">
@@ -373,7 +373,7 @@ const toggleAutostart = async (newValue: boolean | null) => {
     console.error("Fehler beim Ändern der Autostart-Einstellungen:", error);
   } finally {
     // Egal was passiert ist: Wir zwingen den Schalter am Ende,
-    // den ECHTEN Status von Windows anzuzeigen.
+    // den ECHTEN Status des Betriebssystems anzuzeigen.
     autostartEnabled.value = await isEnabled();
   }
 };

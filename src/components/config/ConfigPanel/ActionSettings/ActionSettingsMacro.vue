@@ -49,7 +49,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onUnmounted } from 'vue';
+import { computed, ref, onUnmounted } from 'vue';
+import { usePlatform } from '@/composables/usePlatform';
 
 // --- PROPS ---
 defineProps<{
@@ -70,7 +71,13 @@ let currentKeys: string[] = [];
 // Typisierung für die gemischte Liste (Header & Items)
 type PresetItem = { header?: string; label?: string; value?: string };
 
-const presets: PresetItem[] = [
+const { isLinux } = usePlatform();
+
+// 'Win + L' und 'Ctrl + Shift + Esc' behandelt das Backend nativ (siehe
+// platform::*::shell). Alle anderen Presets gehen als simulierte Tasten raus –
+// unter Linux ist 'Win' die Super-Taste, die Aktion hängt dort also an den
+// Tastenkürzeln des Desktops.
+const windowsPresets: PresetItem[] = [
   { header: 'Windows Shortcuts' },
   { label: 'Snipping Tool (Win+Shift+S)', value: 'Win + Shift + S' },
   { label: 'Task-Manager (Ctrl+Shift+Esc)', value: 'Ctrl + Shift + Esc' },
@@ -78,7 +85,19 @@ const presets: PresetItem[] = [
   { label: 'PC sperren (Win+L)', value: 'Win + L' },
   { label: 'Zwischenablage (Win+V)', value: 'Win + V' },
   { label: 'Emoji-Panel (Win+.)', value: 'Win + .' },
+];
 
+const linuxPresets: PresetItem[] = [
+  { header: 'Desktop-Shortcuts' },
+  { label: 'Bildschirm sperren', value: 'Win + L' },
+  { label: 'Systemmonitor', value: 'Ctrl + Shift + Esc' },
+  { label: 'Anwendungsmenü (Super)', value: 'Win' },
+  { label: 'Fenster schließen (Super+Q)', value: 'Win + Q' },
+  { label: 'Fenster umschalten (Alt+Tab)', value: 'Alt + TAB' },
+  { label: 'Terminal (Super+Enter)', value: 'Win + ENTER' },
+];
+
+const specialKeys: PresetItem[] = [
   { header: 'Spezialtasten' },
   { label: 'Drucken (Print Screen)', value: 'PrintScreen' },
   { label: 'Rollen (Scroll Lock)', value: 'ScrollLock' },
@@ -86,6 +105,11 @@ const presets: PresetItem[] = [
   { label: 'Einfügen (Insert)', value: 'Insert' },
   { label: 'Kontextmenü (Menu-Taste)', value: 'ContextMenu' },
 ];
+
+const presets = computed<PresetItem[]>(() => [
+  ...(isLinux.value ? linuxPresets : windowsPresets),
+  ...specialKeys,
+]);
 
 // --- METHODS ---
 const selectPreset = (presetValue: string) => {

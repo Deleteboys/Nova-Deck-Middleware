@@ -13,12 +13,6 @@ use std::thread;
 use std::time::Duration;
 use sysinfo::{Disks, ProcessesToUpdate, System};
 use tauri::{AppHandle, Emitter, Manager, State};
-use windows::core::Interface;
-use windows::Win32::Media::Audio::{
-    eConsole, eRender, IAudioSessionControl2, IAudioSessionManager2, IMMDeviceEnumerator,
-    MMDeviceEnumerator,
-};
-use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_ALL};
 // --- Datenstrukturen für Mappings ---
 
 type SpotifyClientPtr = Arc<tokio::sync::Mutex<Option<rspotify::AuthCodePkceSpotify>>>;
@@ -469,39 +463,10 @@ pub fn get_active_processes() -> Vec<String> {
 
 #[tauri::command]
 pub fn get_active_audio_processes() -> Vec<String> {
-    let mut audio_pids = HashSet::new();
-
-    unsafe {
-        if let Ok(_com) = crate::com::ComGuard::init_apartment_threaded() {
-            // Wir trennen den Aufruf von der Zuweisung, damit wir den Typ sauber annotieren können
-            let enumerator_result: windows::core::Result<IMMDeviceEnumerator> =
-                CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL);
-
-            if let Ok(enumerator) = enumerator_result {
-                if let Ok(device) = enumerator.GetDefaultAudioEndpoint(eRender, eConsole) {
-                    // Bei .Activate ist die Turbofish-Syntax ::<Type> erlaubt und nötig
-                    if let Ok(manager) = device.Activate::<IAudioSessionManager2>(CLSCTX_ALL, None)
-                    {
-                        if let Ok(session_enumerator) = manager.GetSessionEnumerator() {
-                            let count = session_enumerator.GetCount().unwrap_or(0);
-
-                            for i in 0..count {
-                                if let Ok(session) = session_enumerator.GetSession(i) {
-                                    if let Ok(session2) = session.cast::<IAudioSessionControl2>() {
-                                        if let Ok(pid) = session2.GetProcessId() {
-                                            if pid > 0 {
-                                                audio_pids.insert(pid);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+    let audio_pids: HashSet<u32> = crate::audio::list_session_pids()
+        .unwrap_or_default()
+        .into_iter()
+        .collect();
 
     // Namen über sysinfo auflösen
     let mut sys = System::new_all();
@@ -557,6 +522,23 @@ pub async fn check_firmware_update() -> Result<Option<FirmwareUpdateInfo>, Strin
     }
 }
 
+/// Erkennt das Bootloader-Laufwerk des RP2040.
+///
+/// Windows liefert als Datenträgernamen das Label ("RPI-RP2"), Linux dagegen
+/// den Device-Node (z. B. "/dev/sdb1") – dort steckt das Label nur im
+/// Mount-Pfad, weil udisks2 nach `/run/media/<user>/RPI-RP2` mountet. Als
+/// letzte Absicherung wird auf die vom Bootloader angelegte `INFO_UF2.TXT`
+/// geprüft.
+fn is_pico_bootloader(disk: &sysinfo::Disk) -> bool {
+    const LABEL: &str = "RPI-RP2";
+
+    let mount_point = disk.mount_point();
+
+    disk.name().to_string_lossy().to_uppercase().contains(LABEL)
+        || mount_point.to_string_lossy().to_uppercase().contains(LABEL)
+        || mount_point.join("INFO_UF2.TXT").is_file()
+}
+
 #[tauri::command]
 pub async fn download_and_flash_firmware(
     app: AppHandle,
@@ -581,7 +563,7 @@ pub async fn download_and_flash_firmware(
     for _ in 0..30 {
         disks.refresh(true);
         for disk in &disks {
-            if disk.name().to_string_lossy().contains("RPI-RP2") {
+            if is_pico_bootloader(disk) {
                 pico_mount_point = Some(disk.mount_point().to_path_buf());
                 break;
             }
@@ -645,7 +627,20 @@ pub fn get_start_minimized(app: AppHandle) -> bool {
 
 #[tauri::command]
 pub fn get_audio_output_devices() -> Result<Vec<AudioDeviceInfo>, String> {
-    unsafe { list_audio_devices().map_err(|e| e.to_string()) }
+    list_audio_devices().map_err(|e| e.to_string())
+}
+
+/// Plattform des Hosts, damit das Frontend passende Beschriftungen und
+/// Shortcut-Vorlagen anzeigen kann.
+#[tauri::command]
+pub fn get_platform() -> &'static str {
+    if cfg!(windows) {
+        "windows"
+    } else if cfg!(target_os = "linux") {
+        "linux"
+    } else {
+        "unknown"
+    }
 }
 
 #[tauri::command]

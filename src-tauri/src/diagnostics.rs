@@ -1,10 +1,8 @@
+use crate::platform::ProcessDiagnostics;
 use serde::Serialize;
-use std::mem::size_of;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
 use std::time::Instant;
-use windows::Win32::System::ProcessStatus::{GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS, PROCESS_MEMORY_COUNTERS_EX};
-use windows::Win32::System::Threading::{GetCurrentProcess, GetCurrentProcessId, GetProcessHandleCount};
 
 static STARTED_AT: OnceLock<Instant> = OnceLock::new();
 
@@ -34,6 +32,8 @@ static AUDIO_STATUS_ERRORS: AtomicU64 = AtomicU64::new(0);
 static AUDIO_EMPTY_RESULTS: AtomicU64 = AtomicU64::new(0);
 static AUDIO_UPDATES_EMITTED: AtomicU64 = AtomicU64::new(0);
 static AUDIO_PICO_COMMANDS_SENT: AtomicU64 = AtomicU64::new(0);
+static AUDIO_BACKEND_CONNECTS: AtomicU64 = AtomicU64::new(0);
+static AUDIO_BACKEND_ERRORS: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Serialize)]
 pub struct RuntimeDiagnostics {
@@ -42,20 +42,6 @@ pub struct RuntimeDiagnostics {
     pub serial: SerialDiagnostics,
     pub audio: AudioDiagnostics,
     pub com: ComDiagnostics,
-}
-
-#[derive(Serialize)]
-pub struct ProcessDiagnostics {
-    pub pid: u32,
-    pub working_set_bytes: u64,
-    pub peak_working_set_bytes: u64,
-    pub private_usage_bytes: u64,
-    pub peak_pagefile_usage_bytes: u64,
-    pub pagefile_usage_bytes: u64,
-    pub paged_pool_bytes: u64,
-    pub nonpaged_pool_bytes: u64,
-    pub page_faults: u64,
-    pub handle_count: u32,
 }
 
 #[derive(Serialize)]
@@ -83,6 +69,10 @@ pub struct AudioDiagnostics {
     pub empty_results: u64,
     pub updates_emitted: u64,
     pub pico_commands_sent: u64,
+    /// Verbindungsaufbauten zum Audio-Backend (Linux: PulseAudio/PipeWire;
+    /// unter Windows immer 0, dort zählt stattdessen `com`).
+    pub backend_connects: u64,
+    pub backend_errors: u64,
 }
 
 #[derive(Serialize)]
@@ -126,6 +116,8 @@ pub fn snapshot() -> RuntimeDiagnostics {
             empty_results: AUDIO_EMPTY_RESULTS.load(Ordering::Relaxed),
             updates_emitted: AUDIO_UPDATES_EMITTED.load(Ordering::Relaxed),
             pico_commands_sent: AUDIO_PICO_COMMANDS_SENT.load(Ordering::Relaxed),
+            backend_connects: AUDIO_BACKEND_CONNECTS.load(Ordering::Relaxed),
+            backend_errors: AUDIO_BACKEND_ERRORS.load(Ordering::Relaxed),
         },
         com: ComDiagnostics {
             init_calls: COM_INIT_CALLS.load(Ordering::Relaxed),
@@ -137,22 +129,28 @@ pub fn snapshot() -> RuntimeDiagnostics {
     }
 }
 
+// Die COM-Zähler betreffen nur den Windows-Lifecycle; auf Linux bleiben sie 0.
+#[cfg(windows)]
 pub fn record_com_init_call() {
     COM_INIT_CALLS.fetch_add(1, Ordering::Relaxed);
 }
 
+#[cfg(windows)]
 pub fn record_com_real_init() {
     COM_REAL_INITS.fetch_add(1, Ordering::Relaxed);
 }
 
+#[cfg(windows)]
 pub fn record_com_reused_init() {
     COM_REUSED_INITS.fetch_add(1, Ordering::Relaxed);
 }
 
+#[cfg(windows)]
 pub fn record_com_changed_mode() {
     COM_CHANGED_MODE.fetch_add(1, Ordering::Relaxed);
 }
 
+#[cfg(windows)]
 pub fn record_com_uninit() {
     COM_UNINITS.fetch_add(1, Ordering::Relaxed);
 }
@@ -222,6 +220,18 @@ pub fn record_audio_pico_command_sent() {
     AUDIO_PICO_COMMANDS_SENT.fetch_add(1, Ordering::Relaxed);
 }
 
+/// Nur vom Linux-Backend genutzt: erfolgreicher Verbindungsaufbau zum Audio-Server.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+pub fn record_audio_backend_connect() {
+    AUDIO_BACKEND_CONNECTS.fetch_add(1, Ordering::Relaxed);
+}
+
+/// Nur vom Linux-Backend genutzt: Verbindungsabbruch oder fehlgeschlagener Versuch.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+pub fn record_audio_backend_error() {
+    AUDIO_BACKEND_ERRORS.fetch_add(1, Ordering::Relaxed);
+}
+
 fn update_serial_accumulator(len: usize, cap: usize) {
     SERIAL_ACCUMULATOR_LEN.store(len as u64, Ordering::Relaxed);
     SERIAL_ACCUMULATOR_CAP.store(cap as u64, Ordering::Relaxed);
@@ -239,33 +249,5 @@ fn update_max(target: &AtomicU64, value: u64) {
 }
 
 fn process_snapshot() -> ProcessDiagnostics {
-    unsafe {
-        let process = GetCurrentProcess();
-        let mut counters = PROCESS_MEMORY_COUNTERS_EX {
-            cb: size_of::<PROCESS_MEMORY_COUNTERS_EX>() as u32,
-            ..Default::default()
-        };
-
-        let _ = GetProcessMemoryInfo(
-            process,
-            &mut counters as *mut PROCESS_MEMORY_COUNTERS_EX as *mut PROCESS_MEMORY_COUNTERS,
-            size_of::<PROCESS_MEMORY_COUNTERS_EX>() as u32,
-        );
-
-        let mut handle_count = 0u32;
-        let _ = GetProcessHandleCount(process, &mut handle_count);
-
-        ProcessDiagnostics {
-            pid: GetCurrentProcessId(),
-            working_set_bytes: counters.WorkingSetSize as u64,
-            peak_working_set_bytes: counters.PeakWorkingSetSize as u64,
-            private_usage_bytes: counters.PrivateUsage as u64,
-            peak_pagefile_usage_bytes: counters.PeakPagefileUsage as u64,
-            pagefile_usage_bytes: counters.PagefileUsage as u64,
-            paged_pool_bytes: counters.QuotaPagedPoolUsage as u64,
-            nonpaged_pool_bytes: counters.QuotaNonPagedPoolUsage as u64,
-            page_faults: counters.PageFaultCount as u64,
-            handle_count,
-        }
-    }
+    crate::platform::diagnostics::process_snapshot()
 }

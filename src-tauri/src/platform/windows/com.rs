@@ -1,5 +1,6 @@
+use crate::platform::Result;
 use std::cell::Cell;
-use windows::core::{Result, HRESULT};
+use windows::core::HRESULT;
 use windows::Win32::System::Com::{
     CoInitializeEx, CoUninitialize, COINIT, COINIT_APARTMENTTHREADED, COINIT_MULTITHREADED,
 };
@@ -16,15 +17,15 @@ pub struct ComGuard {
 }
 
 impl ComGuard {
-    pub unsafe fn init_multithreaded() -> Result<Self> {
+    pub fn init_multithreaded() -> Result<Self> {
         Self::init(COINIT_MULTITHREADED)
     }
 
-    pub unsafe fn init_apartment_threaded() -> Result<Self> {
+    pub fn init_apartment_threaded() -> Result<Self> {
         Self::init(COINIT_APARTMENTTHREADED)
     }
 
-    unsafe fn init(coinit: COINIT) -> Result<Self> {
+    fn init(coinit: COINIT) -> Result<Self> {
         crate::diagnostics::record_com_init_call();
 
         if COM_DEPTH.with(|depth| depth.get()) > 0 {
@@ -33,7 +34,7 @@ impl ComGuard {
             return Ok(Self { active: true });
         }
 
-        let result = CoInitializeEx(None, coinit);
+        let result = unsafe { CoInitializeEx(None, coinit) };
 
         if result.is_ok() {
             COM_DEPTH.with(|depth| depth.set(1));

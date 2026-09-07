@@ -1,9 +1,9 @@
 use crate::action::actions::Action;
-use crate::audio::adjust_volume_for_pids;
+use crate::audio::{adjust_volume, AudioTarget};
+use crate::platform::window::active_window;
 use crate::protocol::{HostToPico, VibrationPattern};
-use std::sync::mpsc;
 use log::error;
-use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId};
+use std::sync::mpsc;
 
 #[derive(Debug, Clone)]
 pub struct ForegroundVolumeAction {
@@ -19,26 +19,26 @@ impl Action for ForegroundVolumeAction {
         let tx = self.tx.clone();
 
         tauri::async_runtime::spawn(async move {
-            unsafe {
-                let hwnd = GetForegroundWindow();
-                if hwnd.is_invalid() {
-                    return;
-                }
+            let Some(window) = active_window() else {
+                return;
+            };
 
-                let mut pid: u32 = 0;
-                GetWindowThreadProcessId(hwnd, Some(&mut pid));
+            let target = AudioTarget::from_pids(window.pid).with_hint(window.app_id.as_deref());
+            if target.is_empty() {
+                return;
+            }
 
-                if pid != 0 {
-                    match adjust_volume_for_pids(&[pid], step, snap) {
-                        Ok(true) => {
-                            let _ = tx.send(HostToPico::Vibrate {
-                                pattern: VibrationPattern::Medium,
-                            });
-                        }
-                        Err(_e) => error!("Vordergrund-Lautstärke angepasst (PID: {})", pid),
-                        _ => {} // Nichts tun, wenn das Limit nicht erreicht wurde
-                    }
+            match adjust_volume(&target, step, snap) {
+                Ok(true) => {
+                    let _ = tx.send(HostToPico::Vibrate {
+                        pattern: VibrationPattern::Medium,
+                    });
                 }
+                Err(e) => error!(
+                    "Vordergrund-Lautstärke konnte nicht angepasst werden (PID: {:?}): {}",
+                    window.pid, e
+                ),
+                _ => {} // Nichts tun, wenn das Limit nicht erreicht wurde
             }
         });
     }

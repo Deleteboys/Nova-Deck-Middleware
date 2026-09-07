@@ -1,11 +1,11 @@
 pub mod action;
 mod audio;
-mod com;
 mod commands;
 mod config;
 mod diagnostics;
 pub mod modules;
 mod monitor;
+mod platform;
 mod protocol;
 mod serial;
 mod spotify;
@@ -111,7 +111,8 @@ pub fn run() {
             commands::get_start_minimized,
             commands::get_audio_output_devices,
             commands::start_spotify_login,
-            commands::get_runtime_diagnostics
+            commands::get_runtime_diagnostics,
+            commands::get_platform
         ])
         .setup(move |app| {
             // --- TRAY MENU SETUP ---

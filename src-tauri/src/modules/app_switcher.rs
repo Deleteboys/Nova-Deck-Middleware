@@ -45,10 +45,10 @@ pub struct AppSwitcherCycleAction {
 
 /// Prüft, ob zu einem Prozessnamen eine der offenen Audio-Sessions passt.
 fn is_app_open(process_name: &str, open_sessions: &[String]) -> bool {
-    if process_name.is_empty() {
+    let needle = crate::audio::normalize_process_name(process_name);
+    if needle.is_empty() {
         return false;
     }
-    let needle = process_name.to_lowercase();
     open_sessions.iter().any(|id| id.contains(&needle))
 }
 
@@ -70,9 +70,9 @@ fn next_open_index(
 
 impl Action for AppSwitcherCycleAction {
     fn execute(&self) {
-        // Vor dem Lock ermitteln, damit die COM-Abfrage die Runtime nicht blockiert
+        // Vor dem Lock ermitteln, damit die Backend-Abfrage die Runtime nicht blockiert
         let open_sessions = if self.hide_closed_apps {
-            Some(unsafe { crate::audio::list_open_session_identifiers() }.unwrap_or_default())
+            Some(crate::audio::list_open_session_identifiers().unwrap_or_default())
         } else {
             None
         };

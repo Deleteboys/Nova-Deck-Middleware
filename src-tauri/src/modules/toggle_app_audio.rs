@@ -1,10 +1,9 @@
 use crate::action::actions::Action;
-use crate::audio::toggle_mute_for_pids;
+use crate::audio::{target_for_process_name, toggle_mute};
 use crate::modules::app_switcher::AppSwitcherRuntime;
+use log::error;
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
-use log::error;
-use sysinfo::{ProcessesToUpdate, System};
 
 #[derive(Debug)]
 pub struct ToggleAppAudioAction {
@@ -25,20 +24,10 @@ impl Action for ToggleAppAudioAction {
         };
 
         tauri::async_runtime::spawn(async move {
-            let mut sys = System::new();
-            sys.refresh_processes(ProcessesToUpdate::All, true);
+            let target = target_for_process_name(&name);
 
-            let target_pids: Vec<u32> = sys
-                .processes()
-                .iter()
-                .filter(|(_, p)| p.name().to_string_lossy() == name)
-                .map(|(pid, _)| pid.as_u32())
-                .collect();
-
-            unsafe {
-                if let Err(e) = toggle_mute_for_pids(&target_pids) {
-                    error!("Fehler beim Toggeln von {}: {}", name, e);
-                }
+            if let Err(e) = toggle_mute(&target) {
+                error!("Fehler beim Toggeln von {}: {}", name, e);
             }
         });
     }

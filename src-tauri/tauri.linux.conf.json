@@ -1,0 +1,25 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "targets": [
+      "deb",
+      "rpm",
+      "appimage"
+    ],
+    "linux": {
+      "deb": {
+        "depends": [
+          "libpulse0",
+          "libayatana-appindicator3-1 | libappindicator3-1"
+        ],
+        "section": "utils"
+      },
+      "rpm": {
+        "depends": [
+          "pulseaudio-libs",
+          "libappindicator-gtk3"
+        ]
+      }
+    }
+  }
+}

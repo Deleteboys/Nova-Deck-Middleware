@@ -177,8 +177,10 @@
 import {ref, computed, onMounted, onUnmounted, watch} from "vue";
 import {useStreamDeckStore} from "@/stores/streamdeck";
 import {getRuntimeDiagnostics, type RuntimeDiagnostics} from "@/services/streamdeckCommands";
+import {usePlatform} from "@/composables/usePlatform";
 
 const store = useStreamDeckStore();
+const {isLinux} = usePlatform();
 const diagnostics = ref<RuntimeDiagnostics | null>(null);
 const diagnosticsError = ref("");
 const isLoadingDiagnostics = ref(false);
@@ -236,7 +238,7 @@ const diagnosticItems = computed(() => {
       hint: `Peak ${formatBytes(d.process.peak_working_set_bytes)}`
     },
     {
-      label: "Handles",
+      label: isLinux.value ? "Dateideskriptoren" : "Handles",
       value: formatNumber(d.process.handle_count),
       hint: "Steigt bei Handle-Leaks dauerhaft"
     },
@@ -275,11 +277,18 @@ const diagnosticItems = computed(() => {
       value: formatNumber(d.audio.updates_emitted),
       hint: `${formatNumber(d.audio.pico_commands_sent)} Commands zum Pico`
     },
-    {
-      label: "COM",
-      value: `${formatNumber(d.com.real_inits)} init / ${formatNumber(d.com.uninits)} free`,
-      hint: `${formatNumber(d.com.reused_inits)} reused, ${formatNumber(d.com.changed_mode_results)} changed-mode`
-    },
+    // COM gibt es nur unter Windows, die Pulse-Verbindung nur unter Linux.
+    isLinux.value
+      ? {
+        label: "Audio-Backend",
+        value: `${formatNumber(d.audio.backend_connects)} Verbindungen`,
+        hint: `${formatNumber(d.audio.backend_errors)} Abbrueche / Fehlversuche`
+      }
+      : {
+        label: "COM",
+        value: `${formatNumber(d.com.real_inits)} init / ${formatNumber(d.com.uninits)} free`,
+        hint: `${formatNumber(d.com.reused_inits)} reused, ${formatNumber(d.com.changed_mode_results)} changed-mode`
+      },
   ];
 });
 

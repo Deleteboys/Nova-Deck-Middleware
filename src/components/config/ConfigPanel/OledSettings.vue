@@ -59,6 +59,8 @@
               <v-autocomplete
                   v-model="slot.process"
                   :items="activeProcesses"
+                  item-title="title"
+                  item-value="value"
                   variant="underlined"
                   density="compact"
                   hide-details
@@ -89,7 +91,14 @@ const isSlotControlled = (slotIndex: number): boolean => {
   return Object.values(actions).some((a) => a?.config?.type === 'AppSwitcherCycle');
 };
 
-const activeProcesses = ref<string[]>([]);
+type ProcessOption = { title: string; value: string };
+
+// Der Wert "Windows Master Volume" bleibt aus Kompatibilität zu bereits
+// gespeicherten Profilen erhalten; das Backend erkennt ihn plattformneutral
+// (siehe audio::is_master_slot). Angezeigt wird ein neutrales Label.
+const MASTER_SLOT_VALUE = 'Windows Master Volume';
+
+const activeProcesses = ref<ProcessOption[]>([]);
 const oledSlots = ref([
   { icon: 'MASTER', process: '' },
   { icon: 'SPOTIFY', process: '' },
@@ -107,7 +116,11 @@ const oledSlots = ref([
 const fetchProcesses = async () => {
   try {
     const processes = await getActiveProcesses();
-    activeProcesses.value = ['Windows Master Volume','Foreground Process', ...processes];
+    activeProcesses.value = [
+      { title: 'Master Volume', value: MASTER_SLOT_VALUE },
+      { title: 'Vordergrund-Programm', value: 'Foreground Process' },
+      ...processes.map((process) => ({ title: process, value: process })),
+    ];
   } catch (error) {
     console.error("Prozesse konnten nicht geladen werden:", error);
   }
