@@ -54,6 +54,7 @@ zbus = "5.19"
 x11rb = "0.14"
 # Aktives Fenster: KDE Plasma auf Wayland
 wayland-client = "0.31"
+tauri-plugin-wayland-nvidia-quirk = "0.1.0"
 wayland-protocols-plasma = { version = "0.3", features = ["client"] }
 # Ohne "wayland" kann enigo unter Hyprland/KWin-Wayland keine Tasten senden
 enigo = { version = "0.6.1", features = ["wayland"] }

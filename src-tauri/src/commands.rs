@@ -463,22 +463,18 @@ pub fn get_active_processes() -> Vec<String> {
 
 #[tauri::command]
 pub fn get_active_audio_processes() -> Vec<String> {
-    let audio_pids: HashSet<u32> = crate::audio::list_session_pids()
-        .unwrap_or_default()
-        .into_iter()
-        .collect();
+    let mut names = match crate::audio::list_open_session_identifiers() {
+        Ok(identifiers) => {
+            identifiers.into_iter()
+                .map(|id| {
+                    id.split('|').next().unwrap_or(&id).to_string()
+                })
+                .collect::<Vec<String>>()
+        }
+        Err(_) => Vec::new(),
+    };
 
-    // Namen über sysinfo auflösen
-    let mut sys = System::new_all();
-    sys.refresh_processes(ProcessesToUpdate::All, true);
-
-    let mut names: Vec<String> = sys
-        .processes()
-        .iter()
-        .filter(|(pid, _)| audio_pids.contains(&pid.as_u32()))
-        .map(|(_, p)| p.name().to_string_lossy().into_owned())
-        .collect();
-
+    // 2. Sortieren und Duplikate entfernen (z. B. wenn Spotify 2 Streams offen hat)
     names.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
     names.dedup();
 

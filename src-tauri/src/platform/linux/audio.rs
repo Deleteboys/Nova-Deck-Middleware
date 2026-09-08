@@ -162,8 +162,7 @@ pub fn list_open_session_identifiers() -> Result<Vec<String>> {
     Ok(pulse::snapshot()?
         .inputs
         .iter()
-        .filter(|input| input.pid.is_some())
-        .map(SinkInputSnapshot::identifier)
+        .map(SinkInputSnapshot::identifier) // Hier darf kein PID-Filter mehr davor stehen!
         .filter(|identifier| !identifier.is_empty())
         .collect())
 }
@@ -184,6 +183,9 @@ pub fn adjust_volume(target: &AudioTarget, step: i8, snap: bool) -> Result<bool>
     let snapshot = pulse::snapshot()?;
     let mut boundary_hit = false;
 
+    // NEU: Wir merken uns die berechnete Ziel-Lautstärke für den Fall, dass es Spotify ist
+    let mut next_volume_percent = None;
+
     for input in select_inputs(&snapshot.inputs, target) {
         if !input.volume_writable {
             continue;
@@ -200,7 +202,41 @@ pub fn adjust_volume(target: &AudioTarget, step: i8, snap: bool) -> Result<bool>
             boundary_hit = true;
         }
 
+        // Wert für unseren Hybrid-Ansatz speichern
+        next_volume_percent = Some(next);
+
         pulse::set_sink_input_volume(input.index, pulse::volume_with_percent(&input.volume, next))?;
+    }
+
+    // --- HYBRID ANSATZ FÜR SPOTIFY ---
+    if let Some(vol) = next_volume_percent {
+        // Prüfen, ob "spotify" in den name_hints des AudioTargets vorkommt
+        let is_spotify = target
+            .name_hints
+            .iter()
+            .any(|hint| hint.to_lowercase().contains("spotify"));
+
+        if is_spotify {
+            // MPRIS erwartet die Lautstärke als Dezimalwert (f64) zwischen 0.0 und 1.0
+            let mpris_vol = vol as f64 / 100.0;
+
+            // Da du in mod.rs bereits "pub mod media;" hast, könntest du hier deine eigene MPRIS-Logik aufrufen.
+            // Falls du dort (noch) keine Funktion zum Setzen der Lautstärke hast,
+            // feuern wir hier einfach out-of-the-box den direkten D-Bus Befehl im Hintergrund ab:
+            std::thread::spawn(move || {
+                let _ = std::process::Command::new("dbus-send")
+                    .args([
+                        "--print-reply",
+                        "--dest=org.mpris.MediaPlayer2.spotify",
+                        "/org/mpris/MediaPlayer2",
+                        "org.freedesktop.DBus.Properties.Set",
+                        "string:org.mpris.MediaPlayer2.Player",
+                        "string:Volume",
+                        &format!("variant:double:{}", mpris_vol),
+                    ])
+                    .output();
+            });
+        }
     }
 
     Ok(boundary_hit)

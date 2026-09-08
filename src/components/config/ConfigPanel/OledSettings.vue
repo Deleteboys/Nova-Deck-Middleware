@@ -80,7 +80,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import { useStreamDeckStore } from '@/stores/streamdeck';
-import { getActiveProcesses, setIconSlot } from '@/services/streamdeckCommands';
+import { getActiveAudioProcesses, setIconSlot } from '@/services/streamdeckCommands';
 import {invoke} from "@tauri-apps/api/core";
 
 const store = useStreamDeckStore();
@@ -115,7 +115,7 @@ const oledSlots = ref([
 
 const fetchProcesses = async () => {
   try {
-    const processes = await getActiveProcesses();
+    const processes = await getActiveAudioProcesses();
     activeProcesses.value = [
       { title: 'Master Volume', value: MASTER_SLOT_VALUE },
       { title: 'Vordergrund-Programm', value: 'Foreground Process' },

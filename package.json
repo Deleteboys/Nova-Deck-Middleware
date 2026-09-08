@@ -8,6 +8,7 @@
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "tauri:appimage": "cross-env NO_STRIP=true tauri build -b appimage",
     "version": "node -e \"const fs=require('fs'); const path='./src-tauri/tauri.conf.json'; const t=JSON.parse(fs.readFileSync(path)); t.version=require('./package.json').version; fs.writeFileSync(path, JSON.stringify(t, null, 2));\" && git add src-tauri/tauri.conf.json"
   },
   "dependencies": {

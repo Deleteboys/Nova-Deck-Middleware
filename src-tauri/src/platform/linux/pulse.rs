@@ -598,13 +598,23 @@ impl Connection {
                         .get_str(properties::APPLICATION_PROCESS_ID)
                         .and_then(|value| value.parse::<u32>().ok());
 
+                    let mut binary = info
+                        .proplist
+                        .get_str(properties::APPLICATION_PROCESS_BINARY);
+                    let app_name = info.proplist.get_str(properties::APPLICATION_NAME);
+
+                    // Falls binary fehlt (z. B. Spotify) oder generisch "electron" ist (Vesktop):
+                    if binary.as_deref().is_none_or(|b| b.eq_ignore_ascii_case("electron")) {
+                        if let Some(ref name) = app_name {
+                            binary = Some(name.to_lowercase());
+                        }
+                    }
+
                     target.borrow_mut().push(SinkInputSnapshot {
                         index: info.index,
                         pid,
-                        binary: info
-                            .proplist
-                            .get_str(properties::APPLICATION_PROCESS_BINARY),
-                        app_name: info.proplist.get_str(properties::APPLICATION_NAME),
+                        binary,
+                        app_name,
                         media_name: info
                             .proplist
                             .get_str(properties::MEDIA_NAME)
