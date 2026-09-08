@@ -1,0 +1,1 @@
+- [x] Fix current active window detection

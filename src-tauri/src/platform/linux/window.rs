@@ -36,7 +36,7 @@ fn detect() -> Backend {
     // Vordergrundprogramm ist schlechter als keines.
     if std::env::var_os("WAYLAND_DISPLAY").is_some() {
         if window_plasma::is_available() {
-            info!("Aktives Fenster wird über org_kde_plasma_window_management ermittelt");
+            info!("Aktives Fenster wird über zwlr_foreign_toplevel_manager ermittelt");
             return Backend::Plasma;
         }
         return unsupported();
