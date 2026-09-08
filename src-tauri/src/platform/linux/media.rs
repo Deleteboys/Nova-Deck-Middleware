@@ -24,8 +24,8 @@ fn player_aliases(connection: &Connection, bus_name: &str) -> Vec<String> {
     let mut aliases = Vec::with_capacity(3);
 
     if let Some(suffix) = bus_name.strip_prefix(MPRIS_PREFIX) {
-        // Mehrere Instanzen hängen ".instance1234" an
-        let base = suffix.split(".instance").next().unwrap_or(suffix);
+        // Trennt Suffixe wie ".instance1234" (Firefox) oder ".profile_xyz" (Jellyfin) sauber ab
+        let base = suffix.split('.').next().unwrap_or(suffix);
         aliases.push(base.to_lowercase());
     }
 
@@ -44,6 +44,8 @@ fn player_aliases(connection: &Connection, bus_name: &str) -> Vec<String> {
 
 /// Schaltet Play/Pause bei allen Playern, deren Name zum Prozessnamen passt.
 /// Gibt die Bus-Namen der umgeschalteten Player zurück.
+/// Schaltet Play/Pause bei allen Playern, deren Name zum Prozessnamen passt.
+/// Gibt die Bus-Namen der umgeschalteten Player zurück.
 pub fn toggle_play_pause(process_name: &str) -> Result<Vec<String>> {
     let needle = normalize_process_name(process_name);
     if needle.is_empty() {
@@ -58,7 +60,10 @@ pub fn toggle_play_pause(process_name: &str) -> Result<Vec<String>> {
         .map_err(|e| dbus_error("Bus-Namen konnten nicht gelesen werden", e.into()))?;
 
     let mut toggled = Vec::new();
+    // Hier speichern wir nur noch (Bus-Name, Status) als reine Strings, keine Proxys mehr
+    let mut matched_players: Vec<(String, String)> = Vec::new();
 
+    // 1. Alle passenden Player sammeln und deren Status auslesen
     for name in names {
         let bus_name = name.as_str();
         if !bus_name.starts_with(MPRIS_PREFIX) {
@@ -66,23 +71,40 @@ pub fn toggle_play_pause(process_name: &str) -> Result<Vec<String>> {
         }
 
         let aliases = player_aliases(&connection, bus_name);
-        debug!("MPRIS-Player gefunden: {} ({:?})", bus_name, aliases);
 
+        // Entfernt Sonderzeichen und Leerzeichen für einen robusteren Abgleich
         let matches = aliases
             .iter()
-            .any(|alias| alias.contains(&needle) || needle.contains(alias));
-        if !matches {
-            continue;
+            .any(|alias| {
+                let clean_alias = alias.replace('-', "").replace(' ', "").replace('_', "");
+                let clean_needle = needle.replace('-', "").replace(' ', "").replace('_', "");
+
+                clean_alias.contains(&clean_needle) || clean_needle.contains(&clean_alias)
+            });
+
+        if matches {
+            if let Ok(player) = Proxy::new(&connection, bus_name, MPRIS_PATH, MPRIS_PLAYER_INTERFACE) {
+                let status = player.get_property::<String>("PlaybackStatus")
+                    .unwrap_or_else(|_| "Stopped".to_string());
+                matched_players.push((bus_name.to_owned(), status));
+            }
         }
+    }
 
-        let player = Proxy::new(&connection, bus_name, MPRIS_PATH, MPRIS_PLAYER_INTERFACE)
-            .map_err(|e| dbus_error("Player-Proxy fehlgeschlagen", e))?;
+    // 2. Ziel auswählen (Priorität: Playing -> Paused)
+    let target = matched_players.iter().find(|(_, status)| status == "Playing")
+        .or_else(|| matched_players.iter().find(|(_, status)| status == "Paused"));
 
-        player
-            .call_method("PlayPause", &())
-            .map_err(|e| dbus_error(&format!("PlayPause für {} fehlgeschlagen", bus_name), e))?;
+    // 3. PlayPause an das ausgewählte Ziel senden
+    if let Some((bus_name, status)) = target {
+        debug!("Sende PlayPause exakt an {} (Status: {})", bus_name, status);
 
-        toggled.push(bus_name.to_owned());
+        // Proxy für den EINEN ausgewählten Player neu aufbauen
+        if let Ok(player) = Proxy::new(&connection, bus_name.as_str(), MPRIS_PATH, MPRIS_PLAYER_INTERFACE) {
+            if player.call_method("PlayPause", &()).is_ok() {
+                toggled.push(bus_name.clone());
+            }
+        }
     }
 
     Ok(toggled)
