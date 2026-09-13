@@ -4,6 +4,7 @@ use crate::platform::window::active_window;
 use crate::protocol::{HostToPico, VibrationPattern};
 use log::error;
 use std::sync::mpsc;
+use crate::platform::audio;
 
 #[derive(Debug, Clone)]
 pub struct ForegroundVolumeAction {
@@ -23,10 +24,9 @@ impl Action for ForegroundVolumeAction {
                 return;
             };
 
-            let target = AudioTarget::from_pids(window.pid).with_hint(window.app_id.as_deref());
-            if target.is_empty() {
+            let Some(target) = audio::foreground_target() else {
                 return;
-            }
+            };
 
             match adjust_volume(&target, step, snap) {
                 Ok(true) => {

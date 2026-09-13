@@ -62,7 +62,7 @@ fn start() -> bool {
             function send() {
                 var w = workspace.activeWindow;
                 if (w) {
-                    var id = w.desktopFileName || w.resourceClass || w.resourceName || "";
+                    var id = [w.resourceClass, w.resourceName].filter(Boolean).join("|");
                     var p = w.pid || 0;
                     console.warn("NOVADECK_TRIGGER: " + id + " (PID " + p + ")");
                     callDBus("org.novadeck.Tracker", "/Tracker", "org.novadeck.Tracker", "WindowChanged", id, p);

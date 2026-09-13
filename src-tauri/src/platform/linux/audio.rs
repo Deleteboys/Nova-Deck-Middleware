@@ -82,10 +82,46 @@ fn select_inputs<'a>(
         .collect()
 }
 
-/// Ziel für den Slot „Foreground Process“ aus dem aktiven Fenster.
-fn foreground_target() -> Option<AudioTarget> {
+fn sanitize_hint(raw: &str) -> Option<String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let lower = trimmed.to_lowercase();
+    let name = lower.strip_suffix(".exe").unwrap_or(&lower);
+
+    // Generische Wrapper ignorieren, die keinen eigenen Audio-Sink besitzen
+    const IGNORED: &[&str] = &["wine64-preloader", "wine-preloader", "wineserver"];
+    if IGNORED.contains(&name) {
+        return None;
+    }
+
+    Some(name.to_string())
+}
+
+pub fn foreground_target() -> Option<AudioTarget> {
     let active = window::active_window()?;
-    let target = AudioTarget::from_pids(active.pid).with_hint(active.app_id.as_deref());
+    let mut target = AudioTarget::from_pids(active.pid);
+
+    // 1. Windows-/Prozessname direkt aus /proc/<pid>/comm lesen
+    if let Some(pid) = active.pid {
+        if let Ok(comm) = std::fs::read_to_string(format!("/proc/{pid}/comm")) {
+            if let Some(name) = sanitize_hint(&comm) {
+                target = target.with_hint(Some(&name));
+            }
+        }
+    }
+
+    // 2. KWin Window-IDs/Classes bereinigen und anhängen
+    if let Some(ref app_id) = active.app_id {
+        for part in app_id.split('|') {
+            if let Some(name) = sanitize_hint(part) {
+                target = target.with_hint(Some(&name));
+            }
+        }
+    }
+
     (!target.is_empty()).then_some(target)
 }
 
@@ -241,6 +277,7 @@ pub fn adjust_volume(target: &AudioTarget, step: i8, snap: bool) -> Result<bool>
 
     Ok(boundary_hit)
 }
+
 
 pub fn toggle_mute(target: &AudioTarget) -> Result<()> {
     if target.is_empty() {
