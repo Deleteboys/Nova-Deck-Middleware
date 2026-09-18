@@ -2,7 +2,7 @@ use crate::action::actions::Action;
 use crate::audio::{adjust_volume, AudioTarget};
 use crate::platform::window::active_window;
 use crate::protocol::{HostToPico, VibrationPattern};
-use log::error;
+use log::{debug, error};
 use std::sync::mpsc;
 use crate::platform::audio;
 
@@ -27,6 +27,8 @@ impl Action for ForegroundVolumeAction {
             let Some(target) = audio::foreground_target() else {
                 return;
             };
+
+            debug!("Foreground app: {:?}", target.name_hints);
 
             match adjust_volume(&target, step, snap) {
                 Ok(true) => {
