@@ -109,6 +109,7 @@ pub struct AudioTarget {
     pub pids: Vec<u32>,
     /// Klein geschrieben und ohne `.exe` – siehe [`crate::audio::normalize_process_name`].
     pub name_hints: Vec<String>,
+    pub caption: Option<String>,
 }
 
 impl AudioTarget {
@@ -116,6 +117,7 @@ impl AudioTarget {
         Self {
             pids: pids.into_iter().collect(),
             name_hints: Vec::new(),
+            caption: None,
         }
     }
 
@@ -131,8 +133,18 @@ impl AudioTarget {
         self
     }
 
+    pub fn with_caption(mut self, caption: Option<&str>) -> Self {
+        if let Some(caption) = caption {
+            let normalized = crate::audio::normalize_process_name(caption);
+            if !normalized.is_empty() {
+                self.caption = Some(normalized);
+            }
+        }
+        self
+    }
+
     pub fn is_empty(&self) -> bool {
-        self.pids.is_empty() && self.name_hints.is_empty()
+        self.pids.is_empty() && self.name_hints.is_empty() && self.caption.is_none()
     }
 }
 

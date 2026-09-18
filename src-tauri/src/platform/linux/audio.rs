@@ -65,9 +65,9 @@ fn select_inputs<'a>(
         .filter(|input| {
             input.pid.is_some_and(|pid| target.pids.contains(&pid))
                 || target
-                    .name_hints
-                    .iter()
-                    .any(|hint| input.matches_hint(hint))
+                .name_hints
+                .iter()
+                .any(|hint| input.matches_hint(hint))
         })
         .collect();
 
@@ -104,7 +104,7 @@ pub fn foreground_target() -> Option<AudioTarget> {
     let active = window::active_window()?;
     let mut target = AudioTarget::from_pids(active.pid);
 
-    // 1. Windows-/Prozessname direkt aus /proc/<pid>/comm lesen
+    // 1. comm lesen
     if let Some(pid) = active.pid {
         if let Ok(comm) = std::fs::read_to_string(format!("/proc/{pid}/comm")) {
             if let Some(name) = sanitize_hint(&comm) {
@@ -113,10 +113,38 @@ pub fn foreground_target() -> Option<AudioTarget> {
         }
     }
 
-    // 2. KWin Window-IDs/Classes bereinigen und anhängen
+    // 2. KWin Classes & Caption auswerten
     if let Some(ref app_id) = active.app_id {
-        for part in app_id.split('|') {
+        let (classes_str, caption) = match app_id.split_once("::") {
+            Some((cls, cap)) => (cls, cap),
+            None => (app_id.as_str(), ""),
+        };
+
+        let mut is_browser = false;
+
+        for part in classes_str.split('|') {
             if let Some(name) = sanitize_hint(part) {
+                let lower = name.to_lowercase();
+                if lower.contains("firefox")
+                    || lower.contains("chrome")
+                    || lower.contains("chromium")
+                    || lower.contains("brave")
+                    || lower.contains("vivaldi")
+                    || lower.contains("opera")
+                    || lower.contains("edge")
+                    || lower.contains("zen")
+                    || lower.contains("floorp")
+                    || lower.contains("librewolf")
+                {
+                    is_browser = true;
+                }
+                target = target.with_hint(Some(&name));
+            }
+        }
+
+        // 3. Caption SOFORT als name_hint mitgeben – außer bei Browsern!
+        if !is_browser && !caption.is_empty() {
+            if let Some(name) = sanitize_hint(caption) {
                 target = target.with_hint(Some(&name));
             }
         }
